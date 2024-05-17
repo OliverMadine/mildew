@@ -13,6 +13,7 @@ maintainer:         30090176+OliverMadine@users.noreply.github.com
 -- test-suite mildew
 executable mildew
     type: exitcode-stdio-1.0
+    other-modules: Combinators
     main-is: Main.hs
     build-depends:
         base ^>=4.16.4.0,
