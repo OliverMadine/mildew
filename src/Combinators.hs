@@ -2,14 +2,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE IncoherentInstances #-}
 
 module Combinators where
 
 import Test.Tasty.QuickCheck ( oneof, Arbitrary(arbitrary), Gen, frequency )
 import Control.Applicative (Applicative(liftA2))
-import Type.Reflection ( Typeable )
-import Data.Data ( Typeable )
-import Debug.Trace ( trace )
+import Data.Typeable ( Typeable )
 
 data AnyCombinator = forall a. (Typeable a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
@@ -28,20 +27,20 @@ data Combinator a where
   Fmap      :: AnyCombinator -> Combinator a
 deriving instance Show (Combinator a)
 
-artistryWrapper :: Gen (Combinator a) -> Gen (Combinator a)
-artistryWrapper specificArbitrary = oneof
+genericCombinator :: Gen (Combinator a)
+genericCombinator = oneof
   [ pure Pure
   , pure Empty
-  , Atomic <$> specificArbitrary
-  , LookAhead <$> specificArbitrary
-  , liftA2 (:*>:) arbitrary specificArbitrary
-  , liftA2 (:<*:) specificArbitrary arbitrary
+  , Atomic <$> arbitrary
+  , LookAhead <$> arbitrary
+  , liftA2 (:*>:) arbitrary arbitrary
+  , liftA2 (:<*:) arbitrary arbitrary
   , Fmap <$> arbitrary
   ]
 
 instance Arbitrary (Combinator a) where
   arbitrary :: Gen (Combinator a)
-  arbitrary = artistryWrapper arbitrary
+  arbitrary = genericCombinator
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator Char) where
   arbitrary :: Gen (Combinator Char)
@@ -49,14 +48,14 @@ instance {-# OVERLAPS #-} Arbitrary (Combinator Char) where
     [ pure Satisfy
     , pure Chr
     , pure Item
-    , artistryWrapper arbitrary
+    , genericCombinator
     ]
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator String) where
   arbitrary :: Gen (Combinator String)
   arbitrary = oneof
     [ pure Str
-    , artistryWrapper arbitrary
+    , genericCombinator
     ]
 
 data AnyMaybe = forall a. (Typeable a) => AnyMaybe (Maybe a)
