@@ -5,5 +5,5 @@ import Combinators ( Combinator )
 
 main :: IO ()
 main = do
-    parser <- generate (arbitrary :: Gen (Combinator String))
+    parser <- generate (arbitrary :: Gen (Combinator Int))
     print parser

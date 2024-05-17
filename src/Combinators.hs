@@ -1,16 +1,15 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module Combinators where
 
 import Test.Tasty.QuickCheck ( oneof, Arbitrary(arbitrary), Gen, frequency )
 import Control.Applicative (Applicative(liftA2))
-import Data.Typeable ( Typeable )
 
-data AnyCombinator = forall a. (Typeable a) => AnyCombinator (Combinator a)
+data AnyCombinator = forall a. (Show a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
 
 data Combinator a where
@@ -25,7 +24,23 @@ data Combinator a where
   (:*>:)    :: AnyCombinator -> Combinator a -> Combinator a
   (:<*:)    :: Combinator a -> AnyCombinator -> Combinator a
   Fmap      :: AnyCombinator -> Combinator a
-deriving instance Show (Combinator a)
+
+instance Show a => Show (Combinator a) where
+  show :: Combinator a -> String
+  show Pure = "pure"
+  show Satisfy = "satisfy"
+  show Empty = "empty"
+  show Chr = "chr"
+  show Item = "item"
+  show Str = "str"
+  show (Atomic c) = "atomic" ++ parensShow c
+  show (LookAhead c) = "lookAhead" ++ parensShow c
+  show ((AnyCombinator c) :*>: c') = parensShow c ++ " *> " ++ parensShow c'
+  show (c :<*: (AnyCombinator c')) = parensShow c ++ " <* " ++ parensShow c'
+  show (Fmap (AnyCombinator c)) = "fmap (" ++ show c ++ ")"
+
+parensShow :: Show a => a -> String
+parensShow s = '(' : show s ++ ")"
 
 genericCombinator :: Gen (Combinator a)
 genericCombinator = oneof
@@ -58,7 +73,8 @@ instance {-# OVERLAPS #-} Arbitrary (Combinator String) where
     , genericCombinator
     ]
 
-data AnyMaybe = forall a. (Typeable a) => AnyMaybe (Maybe a)
+data AnyMaybe = forall a. (Show a) => AnyMaybe (Maybe a)
+deriving instance Show AnyMaybe
 
 instance Arbitrary AnyCombinator where
   arbitrary :: Gen AnyCombinator
