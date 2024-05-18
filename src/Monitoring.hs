@@ -33,9 +33,9 @@ combinatorSize (AnyCombinator c :*>: c') = combinatorSize c + combinatorSize c'
 combinatorSize (c :<*: AnyCombinator c') = combinatorSize c + combinatorSize c'
 combinatorSize (Fmap (AnyCombinator c)) = 1 + combinatorSize c
 
-sampleSizes :: IO [Int]
-sampleSizes = do
-    combinators <- replicateM 1000000 (generate (arbitrary :: Gen (Combinator AnyCombinator)))
+sampleSizes :: Int -> Gen [Int]
+sampleSizes totalSamples = do
+    combinators <- replicateM totalSamples (arbitrary :: Gen (Combinator AnyCombinator))
     pure $ map combinatorSize combinators
 
 frequencyDistribution :: [Int] -> [(Int, Int)]

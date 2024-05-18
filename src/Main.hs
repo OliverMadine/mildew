@@ -8,6 +8,6 @@ import Monitoring ( combinatorSize, sampleSizes, plotCombinatorDistribution )
 
 main :: IO ()
 main = do
-    sizes <- sampleSizes
+    sizes <- generate (sampleSizes 10000)
     plotCombinatorDistribution "combinator-distribution.png" sizes
 
