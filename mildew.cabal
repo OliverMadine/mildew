@@ -15,7 +15,7 @@ executable mildew
     type: exitcode-stdio-1.0
     other-modules:
         Combinators,
-        Compiler.GigaparsecCompiler,
+        Compiler.Gigaparsec,
         DebugUtils,
         Monitoring
     main-is: Main.hs

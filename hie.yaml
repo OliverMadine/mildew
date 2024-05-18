@@ -1,0 +1,16 @@
+cradle:
+  cabal:
+    - path: "src/Main.hs"
+      component: "mildew:exe:mildew"
+
+    - path: "src/Combinators.hs"
+      component: "mildew:exe:mildew"
+
+    - path: "src/Compiler/Gigaparsec.hs"
+      component: "mildew:exe:mildew"
+
+    - path: "src/DebugUtils.hs"
+      component: "mildew:exe:mildew"
+
+    - path: "src/Monitoring.hs"
+      component: "mildew:exe:mildew"
