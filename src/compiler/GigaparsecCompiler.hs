@@ -1,4 +1,8 @@
--- module GigaparsecCompiler where
+{-# LANGUAGE TypeFamilies #-}
 
--- compile :: Combinator a -> Parser as
+module Compiler.GigaparsecCompiler where
+
+import Combinators
+
+-- compile :: Combinator a -> Parser a
 -- compile Pure = pure ()

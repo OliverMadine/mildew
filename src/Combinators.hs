@@ -6,7 +6,7 @@
 
 module Combinators where
 
-import Test.Tasty.QuickCheck ( oneof, Arbitrary(arbitrary), Gen, frequency )
+import Test.Tasty.QuickCheck ( oneof, Arbitrary(arbitrary), Gen, frequency, sized, scale, getSize )
 import Control.Applicative (Applicative(liftA2))
 
 data AnyCombinator = forall a. (Show a) => AnyCombinator (Combinator a)
@@ -39,19 +39,21 @@ instance Show a => Show (Combinator a) where
   show (c :<*: (AnyCombinator c')) = parensShow c ++ " <* " ++ parensShow c'
   show (Fmap (AnyCombinator c)) = "fmap (" ++ show c ++ ")"
 
-parensShow :: Show a => a -> String
-parensShow s = '(' : show s ++ ")"
-
-genericCombinator :: Gen (Combinator a)
-genericCombinator = oneof
+genericLeaf :: Gen (Combinator a)
+genericLeaf = oneof
   [ pure Pure
   , pure Empty
-  , Atomic <$> arbitrary
-  , LookAhead <$> arbitrary
-  , liftA2 (:*>:) arbitrary arbitrary
-  , liftA2 (:<*:) arbitrary arbitrary
-  , Fmap <$> arbitrary
   ]
+
+genericCombinator :: Gen (Combinator a)
+genericCombinator = sized $ \n -> frequency
+    [ (6, genericLeaf)
+    , (n, Atomic <$> decrementSize arbitrary)
+    , (n, LookAhead <$> decrementSize arbitrary)
+    , (n, liftA2 (:*>:) (halfSize arbitrary) (halfSize arbitrary))
+    , (n, liftA2 (:<*:) (halfSize arbitrary) (halfSize arbitrary))
+    , (n, Fmap <$> decrementSize arbitrary)
+    ]
 
 instance Arbitrary (Combinator a) where
   arbitrary :: Gen (Combinator a)
@@ -59,18 +61,18 @@ instance Arbitrary (Combinator a) where
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator Char) where
   arbitrary :: Gen (Combinator Char)
-  arbitrary = oneof
-    [ pure Satisfy
-    , pure Chr
-    , pure Item
-    , genericCombinator
+  arbitrary = sized $ \n -> frequency
+    [ (2, pure Satisfy)
+    , (2, pure Chr)
+    , (2, pure Item)
+    , (n, decrementSize genericCombinator)
     ]
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator String) where
   arbitrary :: Gen (Combinator String)
-  arbitrary = oneof
-    [ pure Str
-    , genericCombinator
+  arbitrary = sized $ \n -> frequency
+    [ (6, pure Str)
+    , (n, decrementSize genericCombinator)
     ]
 
 data AnyMaybe = forall a. (Show a) => AnyMaybe (Maybe a)
@@ -94,3 +96,12 @@ instance Arbitrary AnyMaybe where
         , AnyMaybe <$> (arbitrary :: Gen (Maybe Int))
         , AnyMaybe <$> (arbitrary :: Gen (Maybe Bool))
         ]
+
+parensShow :: Show a => a -> String
+parensShow s = '(' : show s ++ ")"
+
+halfSize :: Gen a -> Gen a
+halfSize = scale (`div` 2)
+
+decrementSize :: Gen a -> Gen a
+decrementSize = scale pred
