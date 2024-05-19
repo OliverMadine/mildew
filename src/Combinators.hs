@@ -2,15 +2,13 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE StandaloneDeriving  #-}
-{-# LANGUAGE RankNTypes #-}
 
 module Combinators where
 
-import           Control.Applicative   (Applicative (liftA2))
-import           Test.Tasty.QuickCheck (Arbitrary (arbitrary),
-                                        CoArbitrary (coarbitrary), Gen,
-                                        frequency, getSize, oneof, scale, sized)
+import           Control.Applicative
+import           Test.Tasty.QuickCheck
 
 -- TODO: better way to to handle frequency between leafs, branches, and wrappers
 
@@ -145,7 +143,7 @@ parensShow :: Show a => a -> String
 parensShow s = '(' : show s ++ ")"
 
 arbitraryBinary :: (Arbitrary a, Arbitrary b) => (a -> b -> c) -> Gen c
-arbitraryBinary f = f <$> scale (`div` 2) arbitrary <*> scale (`div` 2) arbitrary
+arbitraryBinary f = liftA2 f (scale (`div` 2) arbitrary) (scale (`div` 2) arbitrary)
 
 arbitraryUnary :: Arbitrary a => (a -> b) -> Gen b
 arbitraryUnary f = f <$> scale pred arbitrary

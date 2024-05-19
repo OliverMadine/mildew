@@ -17,7 +17,8 @@ executable mildew
         Combinators,
         Compiler.Gigaparsec,
         DebugUtils,
-        Monitoring
+        Monitoring,
+        Parser
     main-is: Main.hs
     build-depends:
         base ^>=4.16.4.0,
