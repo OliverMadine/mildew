@@ -25,7 +25,8 @@ executable mildew
         tasty-hunit,
         tasty-quickcheck,
         Chart,
-        Chart-cairo
+        Chart-cairo,
+        gigaparsec
 
     hs-source-dirs: src
     default-language: Haskell2010

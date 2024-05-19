@@ -29,9 +29,12 @@ combinatorSize Item = 1
 combinatorSize Str = 1
 combinatorSize (Atomic c) = 1 + combinatorSize c
 combinatorSize (LookAhead c) = 1 + combinatorSize c
-combinatorSize (AnyCombinator c :*>: c') = combinatorSize c + combinatorSize c'
-combinatorSize (c :<*: AnyCombinator c') = combinatorSize c + combinatorSize c'
+combinatorSize (AnyCombinator c :*> c') = combinatorSize c + combinatorSize c'
+combinatorSize (c :<* AnyCombinator c') = combinatorSize c + combinatorSize c'
 combinatorSize (Fmap (AnyCombinator c)) = 1 + combinatorSize c
+combinatorSize (Some c) = 1 + combinatorSize c
+combinatorSize (Many c) = 1 + combinatorSize c
+combinatorSize (Choose c c') = combinatorSize c + combinatorSize c'
 
 sampleSizes :: Int -> Gen [Int]
 sampleSizes totalSamples = do
