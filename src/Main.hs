@@ -12,7 +12,7 @@ import           Text.Gigaparsec
 
 plotSampleSizes :: IO ()
 plotSampleSizes = do
-    sizes <- generate (sampleSizes 10000)
+    sizes <- generate (sampleSizes 10000000)
     plotCombinatorDistribution "combinator-distribution.png" sizes
 
 prop_no_crash :: Combinator String -> String -> Property

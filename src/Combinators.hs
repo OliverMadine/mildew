@@ -1,9 +1,13 @@
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE TypeFamilies        #-}
 
 module Combinators where
 
@@ -12,8 +16,12 @@ import           Test.Tasty.QuickCheck
 
 -- TODO: better way to to handle frequency between leafs, branches, and wrappers
 
-data AnyCombinator = forall a. (CoArbitrary a, Arbitrary a, Show a) => AnyCombinator (Combinator a)
-deriving instance Show AnyCombinator
+-- I need to support
+-- e.g some(atomic(char 'a'))
+-- and some(atomic(empty))
+-- not some(atomic(empty) <|> lookAhead 'a')
+-- not some(atomic(pure 1))
+-- not some(atomic())
 
 data Combinator a where
   Pure      :: Combinator a
@@ -30,6 +38,9 @@ data Combinator a where
   Some      :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
   Many      :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
   Choose    :: Combinator a -> Combinator a -> Combinator a
+
+data AnyCombinator = forall a. (CoArbitrary a, Arbitrary a, Show a) => AnyCombinator (Combinator a)
+deriving instance Show AnyCombinator
 
 instance Show (Combinator a) where
   show :: Combinator a -> String
@@ -48,53 +59,43 @@ instance Show (Combinator a) where
   show (Many c)                   = "many" ++ parensShow c
   show (Choose c c')              = parensShow c ++ " <|> " ++ parensShow c'
 
-genericLeaf :: Gen (Combinator a)
-genericLeaf = oneof
-  [ pure Pure
-  , pure Empty
+leafs :: [Gen (Combinator a)]
+leafs = [ pure Pure, pure Empty]
+
+charLeafs :: [Gen (Combinator Char)]
+charLeafs = [pure Satisfy, pure Chr, pure Item] ++ leafs
+
+stringLeafs :: [Gen (Combinator String)]
+stringLeafs = pure Str : leafs
+
+combinators :: [Gen (Combinator a)]
+combinators =
+  [ arbitraryUnary Atomic
+  , arbitraryUnary LookAhead
+  , arbitraryBinary (:*>)
+  , arbitraryBinary (:<*)
+  , arbitraryUnary Fmap
+  , arbitraryBinary Choose
   ]
 
-genericCombinator :: Gen (Combinator a)
-genericCombinator = sized $ \n -> frequency
-  [ (6, genericLeaf)
-  , (n, arbitraryUnary Atomic)
-  , (n, arbitraryUnary LookAhead)
-  , (n, arbitraryBinary (:*>))
-  , (n, arbitraryBinary (:<*))
-  , (n, arbitraryUnary Fmap)
-  , (n, arbitraryBinary Choose)
-  ]
-
-genericList :: (Arbitrary a, Show a) =>  Gen (Combinator [a])
-genericList = sized $ \n -> frequency
-  [ (2, arbitraryUnary Some)
-  , (2, arbitraryUnary Many)
-  , (n, genericCombinator)
-  ]
+listCombinators :: (Arbitrary a, Show a) => [Gen (Combinator [a])]
+listCombinators = [ arbitraryUnary Some, arbitraryUnary Many ] ++ combinators
 
 instance {-# OVERLAPS #-} (Arbitrary a, Show a) => Arbitrary (Combinator [a]) where
   arbitrary :: (Arbitrary a, Show a) => Gen (Combinator [a])
-  arbitrary = genericList
+  arbitrary = sizedOneOf leafs listCombinators
 
 instance Arbitrary (Combinator a) where
   arbitrary :: Gen (Combinator a)
-  arbitrary = genericCombinator
+  arbitrary = sizedOneOf leafs combinators
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator Char) where
   arbitrary :: Gen (Combinator Char)
-  arbitrary = sized $ \n -> frequency
-    [ (2, pure Satisfy)
-    , (2, pure Chr)
-    , (2, pure Item)
-    , (n, genericCombinator)
-    ]
+  arbitrary = sizedOneOf charLeafs combinators
 
 instance {-# OVERLAPS #-} Arbitrary (Combinator String) where
   arbitrary :: Gen (Combinator String)
-  arbitrary = sized $ \n -> frequency
-    [ (8, pure Str)
-    , (n, genericList)
-    ]
+  arbitrary = sizedOneOf stringLeafs listCombinators
 
 instance Arbitrary AnyCombinator where
   arbitrary :: Gen AnyCombinator
@@ -143,7 +144,13 @@ parensShow :: Show a => a -> String
 parensShow s = '(' : show s ++ ")"
 
 arbitraryBinary :: (Arbitrary a, Arbitrary b) => (a -> b -> c) -> Gen c
-arbitraryBinary f = liftA2 f (scale (`div` 2) arbitrary) (scale (`div` 2) arbitrary)
+arbitraryBinary f = scale pred $ liftA2 f (scale (`div` 2) arbitrary) (scale (`div` 2) arbitrary)
 
 arbitraryUnary :: Arbitrary a => (a -> b) -> Gen b
 arbitraryUnary f = f <$> scale pred arbitrary
+
+sizedOneOf :: [Gen a] -> [Gen a] -> Gen a
+sizedOneOf leafs combinators = sized gen
+  where
+    gen 0 = oneof leafs
+    gen n = oneof (leafs ++ combinators)

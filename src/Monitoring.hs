@@ -52,7 +52,8 @@ plotCombinatorDistribution filePath xs = do
 
   toFile def filePath $ do
     layout_title .= "Combinator Size Distribution"
-    layout_x_axis . laxis_title .= "Combinator Frequency"
-    layout_y_axis . laxis_title .= "Combinator Size"
+    layout_y_axis . laxis_title .= "Combinator Frequency"
+    layout_x_axis . laxis_title .= "Combinator Size"
     setColors [opaque blue]
-    plot (line "Combinator Size Distribution" [zip values frequencies])
+    plot (line "Combinator Size Distribution" [zip values (repeat 1 :: [Int])])
+
