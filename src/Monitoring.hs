@@ -1,39 +1,39 @@
-{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 
 module Monitoring where
 
-import Combinators ( Combinator(..), AnyCombinator(AnyCombinator) )
-import Test.Tasty.QuickCheck ( generate, Gen, Arbitrary(arbitrary) )
-import Control.Monad ( replicateM )
+import           Combinators.Combinators                (AnyCombinator (AnyCombinator),
+                                                         Combinator (..))
+import           Control.Monad                          (replicateM)
+import           Test.Tasty.QuickCheck                  (Arbitrary (arbitrary),
+                                                         Gen, generate)
 
-import Graphics.Rendering.Chart.Easy
-    ( opaque,
-      line,
-      setColors,
-      layout_title,
-      plot,
-      blue,
-      (.=),
-      Default(def), layout_x_axis, layout_y_axis, laxis_title )
-import Graphics.Rendering.Chart.Backend.Cairo ( toFile )
-import Data.List (group, sort)
+import           Data.List                              (group, sort)
+import           Graphics.Rendering.Chart.Backend.Cairo (toFile)
+import           Graphics.Rendering.Chart.Easy          (Default (def), blue,
+                                                         laxis_title,
+                                                         layout_title,
+                                                         layout_x_axis,
+                                                         layout_y_axis, line,
+                                                         opaque, plot,
+                                                         setColors, (.=))
 
 
 combinatorSize :: Combinator a -> Int
-combinatorSize Pure = 1
-combinatorSize Satisfy = 1
-combinatorSize Chr = 1
-combinatorSize Item = 1
-combinatorSize Str = 1
-combinatorSize (Atomic c) = 1 + combinatorSize c
-combinatorSize (LookAhead c) = 1 + combinatorSize c
+combinatorSize Pure                     = 1
+combinatorSize Satisfy                  = 1
+combinatorSize Chr                      = 1
+combinatorSize Item                     = 1
+combinatorSize Str                      = 1
+combinatorSize (Atomic c)               = 1 + combinatorSize c
+combinatorSize (LookAhead c)            = 1 + combinatorSize c
 combinatorSize (AnyCombinator c :*> c') = combinatorSize c + combinatorSize c'
 combinatorSize (c :<* AnyCombinator c') = combinatorSize c + combinatorSize c'
 combinatorSize (Fmap (AnyCombinator c)) = 1 + combinatorSize c
-combinatorSize (Some c) = 1 + combinatorSize c
-combinatorSize (Many c) = 1 + combinatorSize c
-combinatorSize (Alternative c c') = combinatorSize c + combinatorSize c'
+combinatorSize (Some c)                 = 1 + combinatorSize c
+combinatorSize (Many c)                 = 1 + combinatorSize c
+combinatorSize (Alternative c c')       = combinatorSize c + combinatorSize c'
 
 sampleSizes :: Int -> Gen [Int]
 sampleSizes totalSamples = do

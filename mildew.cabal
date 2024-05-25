@@ -14,7 +14,7 @@ maintainer:         30090176+OliverMadine@users.noreply.github.com
 executable mildew
     type: exitcode-stdio-1.0
     other-modules:
-        Combinators,
+        Combinators.Combinators,
         Compiler.Gigaparsec,
         DebugUtils,
         Monitoring,

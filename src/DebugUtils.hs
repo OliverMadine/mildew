@@ -2,8 +2,9 @@
 
 module DebugUtils where
 
-import Combinators ( Combinator(..), AnyCombinator(AnyCombinator) )
-import Monitoring ( combinatorSize )
+import           Combinators.Combinators (AnyCombinator (AnyCombinator),
+                                          Combinator (..))
+import           Monitoring              (combinatorSize)
 
 
 printCombinator :: Show a => Combinator a -> IO ()

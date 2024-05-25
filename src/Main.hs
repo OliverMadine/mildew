@@ -2,12 +2,12 @@
 
 module Main where
 
-import           Combinators
-import           Compiler.Gigaparsec   hiding (Failure, Success)
+import           Combinators.Combinators
+import           Compiler.Gigaparsec     hiding (Failure, Success)
 import           DebugUtils
 import           Monitoring
 import           Test.Tasty
-import           Test.Tasty.QuickCheck hiding (Failure, Success)
+import           Test.Tasty.QuickCheck   hiding (Failure, Success)
 import           Text.Gigaparsec
 
 plotSampleSizes :: IO ()

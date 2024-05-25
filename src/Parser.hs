@@ -1,7 +1,7 @@
 module Parser where
 
-import Combinators
-import Test.Tasty.QuickCheck
+import           Combinators.Combinators
+import           Test.Tasty.QuickCheck
 
 data Parser a = Parser
 

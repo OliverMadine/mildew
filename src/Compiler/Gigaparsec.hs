@@ -2,7 +2,7 @@
 
 module Compiler.Gigaparsec where
 
-import           Combinators
+import           Combinators.Combinators
 import           Control.Applicative
 import           Test.Tasty.QuickCheck
 import           Text.Gigaparsec
