@@ -16,7 +16,7 @@ executable mildew
     other-modules:
         Combinators.Combinators,
         Compiler.Gigaparsec,
-        DebugUtils,
+        Debug,
         Monitoring,
         Parser
     main-is: Main.hs

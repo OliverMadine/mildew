@@ -4,7 +4,7 @@ module Main where
 
 import           Combinators.Combinators
 import           Compiler.Gigaparsec     hiding (Failure, Success)
-import           DebugUtils
+import           Debug
 import           Monitoring
 import           Test.Tasty
 import           Test.Tasty.QuickCheck   hiding (Failure, Success)

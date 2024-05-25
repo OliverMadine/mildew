@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module DebugUtils where
+module Debug where
 
 import           Combinators.Combinators (AnyCombinator (AnyCombinator),
                                           Combinator (..))

@@ -3,13 +3,16 @@ cradle:
     - path: "src/Main.hs"
       component: "mildew:exe:mildew"
 
-    - path: "src/Combinators.hs"
+    - path: "src/combinators/ArbitraryCombinators.hs"
+      component: "mildew:exe:mildew"
+
+    - path: "src/combinators/Combinators.hs"
       component: "mildew:exe:mildew"
 
     - path: "src/Compiler/Gigaparsec.hs"
       component: "mildew:exe:mildew"
 
-    - path: "src/DebugUtils.hs"
+    - path: "src/Debug.hs"
       component: "mildew:exe:mildew"
 
     - path: "src/Monitoring.hs"
