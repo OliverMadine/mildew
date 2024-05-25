@@ -13,7 +13,6 @@ import           Text.Gigaparsec.Char
 
 compile :: Arbitrary t => Combinator t -> Gen (Parsec t)
 compile Pure                       = pure <$> arbitrary
-compile Empty                      = pure empty
 compile Satisfy                    = satisfy <$> arbitrary
 compile Chr                        = char <$> arbitrary
 compile Item                       = pure item
@@ -25,5 +24,5 @@ compile (c :<* (AnyCombinator c')) = compile c <* compile c'
 compile (Fmap (AnyCombinator c))   = liftA2 (<$>) arbitrary (compile c)
 compile (Some c)                   = some <$> compile c
 compile (Many c)                   = many <$> compile c
-compile (Choose c c')              = liftA2 (<|>) (compile c) (compile c')
+compile (Alternative c c')         = liftA2 (<|>) (compile c) (compile c')
 

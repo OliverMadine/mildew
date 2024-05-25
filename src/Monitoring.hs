@@ -22,7 +22,6 @@ import Data.List (group, sort)
 
 combinatorSize :: Combinator a -> Int
 combinatorSize Pure = 1
-combinatorSize Empty = 1
 combinatorSize Satisfy = 1
 combinatorSize Chr = 1
 combinatorSize Item = 1
@@ -34,7 +33,7 @@ combinatorSize (c :<* AnyCombinator c') = combinatorSize c + combinatorSize c'
 combinatorSize (Fmap (AnyCombinator c)) = 1 + combinatorSize c
 combinatorSize (Some c) = 1 + combinatorSize c
 combinatorSize (Many c) = 1 + combinatorSize c
-combinatorSize (Choose c c') = combinatorSize c + combinatorSize c'
+combinatorSize (Alternative c c') = combinatorSize c + combinatorSize c'
 
 sampleSizes :: Int -> Gen [Int]
 sampleSizes totalSamples = do

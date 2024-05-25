@@ -14,30 +14,27 @@ module Combinators where
 import           Control.Applicative
 import           Test.Tasty.QuickCheck
 
--- TODO: better way to to handle frequency between leafs, branches, and wrappers
-
 -- I need to support
 -- e.g some(atomic(char 'a'))
 -- and some(atomic(empty))
 -- not some(atomic(empty) <|> lookAhead 'a')
 -- not some(atomic(pure 1))
--- not some(atomic())
+-- not some(many(char 'a'))
 
 data Combinator a where
-  Pure      :: Combinator a
-  Satisfy   :: Combinator Char
-  Empty     :: Combinator a
-  Chr       :: Combinator Char
-  Item      :: Combinator Char
-  Str       :: Combinator String
-  Atomic    :: Combinator a -> Combinator a
-  LookAhead :: Combinator a -> Combinator a
-  (:*>)     :: AnyCombinator -> Combinator a -> Combinator a
-  (:<*)     :: Combinator a -> AnyCombinator -> Combinator a
-  Fmap      :: AnyCombinator -> Combinator a
-  Some      :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
-  Many      :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
-  Choose    :: Combinator a -> Combinator a -> Combinator a
+  Pure        :: Combinator a
+  Satisfy     :: Combinator Char
+  Chr         :: Combinator Char
+  Item        :: Combinator Char
+  Str         :: Combinator String
+  Atomic      :: Combinator a -> Combinator a
+  LookAhead   :: Combinator a -> Combinator a
+  (:*>)       :: AnyCombinator -> Combinator a -> Combinator a
+  (:<*)       :: Combinator a -> AnyCombinator -> Combinator a
+  Fmap        :: AnyCombinator -> Combinator a
+  Some        :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
+  Many        :: (Arbitrary a, Show a) => Combinator a -> Combinator [a]
+  Alternative :: Combinator a -> Combinator a -> Combinator a
 
 data AnyCombinator = forall a. (CoArbitrary a, Arbitrary a, Show a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
@@ -46,7 +43,6 @@ instance Show (Combinator a) where
   show :: Combinator a -> String
   show Pure                       = "pure"
   show Satisfy                    = "satisfy"
-  show Empty                      = "empty"
   show Chr                        = "chr"
   show Item                       = "item"
   show Str                        = "str"
@@ -57,13 +53,13 @@ instance Show (Combinator a) where
   show (Fmap (AnyCombinator c))   = "fmap (" ++ show c ++ ")"
   show (Some c)                   = "some" ++ parensShow c
   show (Many c)                   = "many" ++ parensShow c
-  show (Choose c c')              = parensShow c ++ " <|> " ++ parensShow c'
+  show (Alternative c c')         = parensShow c ++ " <|> " ++ parensShow c'
 
 leafs :: [Gen (Combinator a)]
-leafs = [ pure Pure, pure Empty]
+leafs = [ pure Pure ]
 
 charLeafs :: [Gen (Combinator Char)]
-charLeafs = [pure Satisfy, pure Chr, pure Item] ++ leafs
+charLeafs = [ pure Satisfy, pure Chr, pure Item ] ++ leafs
 
 stringLeafs :: [Gen (Combinator String)]
 stringLeafs = pure Str : leafs
@@ -75,7 +71,7 @@ combinators =
   , arbitraryBinary (:*>)
   , arbitraryBinary (:<*)
   , arbitraryUnary Fmap
-  , arbitraryBinary Choose
+  , arbitraryBinary Alternative
   ]
 
 listCombinators :: (Arbitrary a, Show a) => [Gen (Combinator [a])]
