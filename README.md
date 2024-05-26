@@ -1,4 +1,4 @@
-Differential Fuzzzing of [Parsley](https://github.com/j-mie6/parsley) and [Gigaparsec](https://github.com/j-mie6/gigaparsec)
+Differential Fuzzing of [Parsley](https://github.com/j-mie6/parsley) and [Gigaparsec](https://github.com/j-mie6/gigaparsec)
 
 # Getting Started
 

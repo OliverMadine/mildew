@@ -19,10 +19,10 @@ compile Item                       = pure item
 compile Str                        = string <$> arbitrary
 compile (Atomic c)                 = atomic <$> compile c
 compile (LookAhead c)              = lookAhead <$> compile c
-compile ((AnyCombinator c) :*> c') = compile c *> compile c'
-compile (c :<* (AnyCombinator c')) = compile c <* compile c'
 compile (Fmap (AnyCombinator c))   = liftA2 (<$>) arbitrary (compile c)
 compile (Some c)                   = some <$> compile c
 compile (Many c)                   = many <$> compile c
+compile ((AnyCombinator c) :*> c') = compile c *> compile c'
+compile (c :<* (AnyCombinator c')) = compile c <* compile c'
 compile (Alternative c c')         = liftA2 (<|>) (compile c) (compile c')
 
