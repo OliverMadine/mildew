@@ -2,7 +2,7 @@
 
 module Utils.Debug where
 
-import           Combinators.Combinators
+import           Generators.Combinators
 import           Monitoring
 
 printCombinator :: Show a => Combinator a -> IO ()

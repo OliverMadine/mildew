@@ -9,17 +9,10 @@
 {-# LANGUAGE StandaloneDeriving  #-}
 {-# LANGUAGE TypeFamilies        #-}
 
-module Combinators.Combinators where
+module Generators.Combinators where
 
 import           Test.Tasty.QuickCheck
 import           Utils.Print
-
--- I need to support
--- e.g some(atomic(char 'a'))
--- and some(atomic(empty))
--- not some(atomic(empty) <|> lookAhead 'a')
--- not some(atomic(pure 1))
--- not some(many(char 'a'))
 
 data Combinator a where
   Pure        :: Combinator a
@@ -32,11 +25,11 @@ data Combinator a where
   (:*>)       :: AnyCombinator -> Combinator a -> Combinator a
   (:<*)       :: Combinator a -> AnyCombinator -> Combinator a
   Fmap        :: AnyCombinator -> Combinator a
-  Some        :: Arbitrary a => Combinator a -> Combinator [a]
-  Many        :: Arbitrary a => Combinator a -> Combinator [a]
+  Some        :: (Show a, Arbitrary a) => Combinator a -> Combinator [a]
+  Many        :: (Show a, Arbitrary a) => Combinator a -> Combinator [a]
   Alternative :: Combinator a -> Combinator a -> Combinator a
 
-data AnyCombinator = forall a. (CoArbitrary a, Arbitrary a) => AnyCombinator (Combinator a)
+data AnyCombinator = forall a. (Show a, CoArbitrary a, Arbitrary a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
 
 instance Show (Combinator a) where

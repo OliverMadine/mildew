@@ -1,11 +1,15 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE NamedFieldPuns       #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Combinators.GenCombinator where
+module Generators.GenCombinator where
 
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
-import qualified Test.Tasty.QuickCheck as QC
+import qualified Test.Tasty.QuickCheck     as QC
+
+combinatorsPerLeaf :: Int
+combinatorsPerLeaf = 4
 
 type GenCombinator t = StateT GenCombinatorState QC.Gen t
 
@@ -37,17 +41,21 @@ oneof :: [GenCombinator t] -> GenCombinator t
 oneof [] = error "ArbitraryCombinators.oneof used with empty list"
 oneof combinators = lift (QC.chooseInt (0, length combinators - 1)) >>= (combinators !!)
 
-sized :: (Int -> GenCombinator t) -> GenCombinator t
-sized = (lift QC.getSize >>=)
-
 scale :: (Int -> Int) -> GenCombinator t -> GenCombinator t
 scale f = mapStateT (QC.scale f)
 
-sizedOneOf :: [GenCombinator t] -> [GenCombinator t] -> GenCombinator t
-sizedOneOf leafs combinators = sized gen
-  where
-    gen 0 = oneof leafs
-    gen n = oneof (leafs ++ combinators)
+chooseLeafOrCombinator :: GenCombinator t -> GenCombinator t -> GenCombinator t
+chooseLeafOrCombinator leaf combinator = do
+  size <- lift QC.getSize
+  n <- lift (QC.chooseInt (0, combinatorsPerLeaf))
+  if size <= 0 || n == 0 then leaf else combinator
+
+selectCombinator :: [GenCombinator a] -> [GenCombinator a] -> GenCombinator a
+selectCombinator advancingCombinators nonAdvancingCombinators = do
+  GenCombinatorState { advancing } <- get
+  if advancing
+    then oneof advancingCombinators
+    else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
 generate gen = QC.generate $ evalStateT gen initState

@@ -14,9 +14,9 @@ maintainer:         30090176+OliverMadine@users.noreply.github.com
 executable mildew
     type: exitcode-stdio-1.0
     other-modules:
-        Combinators.Combinators,
-        Combinators.ArbitraryCombinator,
-        Combinators.GenCombinator,
+        Generators.ArbitraryCombinator,
+        Generators.Combinators,
+        Generators.GenCombinator,
         Compiler.Gigaparsec,
         Utils.Debug,
         Utils.Print,
