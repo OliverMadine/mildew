@@ -18,7 +18,7 @@ advancingGenericCombinators =
   -- of the alternative needs to maintain the advancing property.
   -- We need to make sure that the side at least one advancing side
   -- doesn't fail in the advancing case
-  , scaleBinary Alternative arbitrary arbitrary
+  , arbitraryBinary Alternative
   ]
 
 nonAdvancingGenericCombinators :: [GenCombinator (Combinator a)]
