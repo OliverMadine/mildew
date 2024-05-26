@@ -1,9 +1,9 @@
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 
 module Generators.GenCombinator where
 
+import           Control.Applicative
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
 import qualified Test.Tasty.QuickCheck     as QC
@@ -59,3 +59,15 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
 
 generate :: GenCombinator t -> IO t
 generate gen = QC.generate $ evalStateT gen initState
+
+arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
+arbitraryBinaryEitherAdvancing f = oneof
+  [ scaleBinary f arbitrary (withoutAdvancing arbitrary)
+  , scaleBinary f (withoutAdvancing arbitrary) arbitrary
+  ]
+
+scaleBinary :: (a -> b -> t) -> GenCombinator a -> GenCombinator b -> GenCombinator t
+scaleBinary f l r = scale pred $ liftA2 f (scale (`div` 2) l) (scale (`div` 2) r)
+
+arbitraryUnary :: ArbitraryCombinator a => (a -> b) -> GenCombinator b
+arbitraryUnary f = f <$> scale pred arbitrary

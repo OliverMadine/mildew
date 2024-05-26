@@ -12,7 +12,6 @@ import qualified Test.Tasty.QuickCheck    as QC
 import           Test.Tasty.QuickCheck    hiding (Failure, Success, arbitrary,
                                            generate)
 import           Text.Gigaparsec
-import           Utils.Debug              (printCombinator)
 
 plotSampleSizes :: IO ()
 plotSampleSizes = do
@@ -23,7 +22,7 @@ prop_no_crash :: (Arbitrary a, Show a) => Combinator a -> String -> Property
 prop_no_crash combinator input = ioProperty $ do
   parser <- QC.generate (compile combinator)
   case parse @String parser input of
-    Failure _ -> pure False
+    Failure _ -> pure True
     Success _ -> pure True
 
 main :: IO ()

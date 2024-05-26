@@ -1,16 +1,12 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE IncoherentInstances       #-}
-{-# LANGUAGE InstanceSigs              #-}
-{-# LANGUAGE UndecidableInstances      #-}
+{-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE InstanceSigs        #-}
 
 module Generators.ArbitraryCombinator where
 
-import           Control.Applicative
-import           Control.Monad.Trans.State
 import           Generators.Combinators
 import           Generators.GenCombinator
-import qualified Test.Tasty.QuickCheck     as QC
+import qualified Test.Tasty.QuickCheck    as QC
 
 advancingGenericCombinators :: [GenCombinator (Combinator a)]
 advancingGenericCombinators =
@@ -79,15 +75,3 @@ instance ArbitraryCombinator AnyCombinator where
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator (Maybe Int)))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator [Int]))
     ]
-
-arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
-arbitraryBinaryEitherAdvancing f = oneof
-  [ scaleBinary f arbitrary (withoutAdvancing arbitrary)
-  , scaleBinary f (withoutAdvancing arbitrary) arbitrary
-  ]
-
-scaleBinary :: (a -> b -> t) -> GenCombinator a -> GenCombinator b -> GenCombinator t
-scaleBinary f l r = scale pred $ liftA2 f (scale (`div` 2) l) (scale (`div` 2) r)
-
-arbitraryUnary :: ArbitraryCombinator a => (a -> b) -> GenCombinator b
-arbitraryUnary f = f <$> scale pred arbitrary

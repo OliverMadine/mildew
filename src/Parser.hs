@@ -1,6 +1,5 @@
 module Parser where
 
-import           Generators.Combinators
 import           Test.Tasty.QuickCheck
 
 data Parser a = Parser
