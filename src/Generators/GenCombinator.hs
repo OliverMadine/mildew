@@ -58,7 +58,7 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
     else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
-generate gen = QC.generate $ QC.resize 10000 (evalStateT gen initState)
+generate gen = QC.generate (evalStateT gen initState)
 
 arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
 arbitraryBinaryEitherAdvancing f = oneof

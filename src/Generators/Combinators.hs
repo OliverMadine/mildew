@@ -29,7 +29,7 @@ data Combinator a where
   Many        :: (Show a, Arbitrary a) => Combinator a -> Combinator [a]
   Alternative :: Combinator a -> Combinator a -> Combinator a
 
-data AnyCombinator = forall a. (Show a, CoArbitrary a, Arbitrary a) => AnyCombinator (Combinator a)
+data AnyCombinator = forall a. (Show a, CoArbitrary a, Arbitrary a, Eq a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
 
 instance Show (Combinator a) where
