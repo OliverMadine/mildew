@@ -3,11 +3,11 @@
 
 module Monitoring where
 
+import           Combinator.ArbitraryCombinator
+import           Combinator.Combinator
+import           Combinator.GenCombinator
 import           Control.Monad
 import           Data.List
-import           Generators.ArbitraryCombinator         ()
-import           Generators.Combinators
-import           Generators.GenCombinator
 import           Graphics.Rendering.Chart.Backend.Cairo
 import           Graphics.Rendering.Chart.Easy
 

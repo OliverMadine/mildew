@@ -14,14 +14,16 @@ maintainer:         30090176+OliverMadine@users.noreply.github.com
 executable mildew
     type: exitcode-stdio-1.0
     other-modules:
-        Generators.ArbitraryCombinator,
-        Generators.Combinators,
-        Generators.GenCombinator,
+        Combinator.ArbitraryCombinator,
+        Combinator.Combinator,
+        Combinator.GenCombinator,
         Compiler.Gigaparsec,
         Utils.Debug,
         Utils.Print,
         Monitoring,
-        Parser
+        Parser.ArbitraryParser,
+        Parser.GenParserTestCase,
+        Parser.Parser
     main-is: Main.hs
     build-depends:
         base >=4.16.4.0,

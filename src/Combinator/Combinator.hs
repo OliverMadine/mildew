@@ -9,7 +9,7 @@
 {-# LANGUAGE StandaloneDeriving  #-}
 {-# LANGUAGE TypeFamilies        #-}
 
-module Generators.Combinators where
+module Combinator.Combinator where
 
 import           Test.Tasty.QuickCheck
 import           Utils.Print

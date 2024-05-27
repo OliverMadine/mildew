@@ -2,11 +2,14 @@
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE InstanceSigs        #-}
 
-module Generators.ArbitraryCombinator where
+module Combinator.ArbitraryCombinator where
 
-import           Generators.Combinators
-import           Generators.GenCombinator
+import           Combinator.Combinator
+import           Combinator.GenCombinator
 import qualified Test.Tasty.QuickCheck    as QC
+
+class ArbitraryCombinator t where
+  arbitrary :: GenCombinator t
 
 advancingGenericCombinators :: [GenCombinator (Combinator a)]
 advancingGenericCombinators =
@@ -69,9 +72,21 @@ instance ArbitraryCombinator AnyCombinator where
   arbitrary :: GenCombinator AnyCombinator
   arbitrary = oneof
     [ AnyCombinator <$> (arbitrary :: GenCombinator (Combinator Char))
-    -- , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator String))
+    , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator String))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator Int))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator Bool))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator (Maybe Int)))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator [Int]))
     ]
+
+arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
+arbitraryBinaryEitherAdvancing f = oneof
+  [ scaleBinary f arbitrary (withoutAdvancing arbitrary)
+  , scaleBinary f (withoutAdvancing arbitrary) arbitrary
+  ]
+
+arbitraryBinary :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
+arbitraryBinary f = scaleBinary f arbitrary arbitrary
+
+arbitraryUnary :: ArbitraryCombinator a => (a -> b) -> GenCombinator b
+arbitraryUnary f = f <$> scale pred arbitrary

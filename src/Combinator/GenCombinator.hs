@@ -1,26 +1,20 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE NamedFieldPuns    #-}
 
-module Generators.GenCombinator where
+module Combinator.GenCombinator where
 
 import           Control.Applicative
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
 import qualified Test.Tasty.QuickCheck     as QC
 
-combinatorsPerLeaf :: Int
-combinatorsPerLeaf = 4
-
 type GenCombinator t = StateT GenCombinatorState QC.Gen t
-
-class ArbitraryCombinator t where
-  arbitrary :: GenCombinator t
 
 newtype GenCombinatorState = GenCombinatorState
   { advancing :: Bool }
 
-initState :: GenCombinatorState
-initState = GenCombinatorState
+initGenCombinatorState :: GenCombinatorState
+initGenCombinatorState = GenCombinatorState
   { advancing = False }
 
 modifyAdvancing :: Bool -> GenCombinator t -> GenCombinator t
@@ -58,19 +52,13 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
     else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
-generate gen = QC.generate (evalStateT gen initState)
+generate gen = QC.generate $ evalGenCombinatorState gen
 
-arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
-arbitraryBinaryEitherAdvancing f = oneof
-  [ scaleBinary f arbitrary (withoutAdvancing arbitrary)
-  , scaleBinary f (withoutAdvancing arbitrary) arbitrary
-  ]
+evalGenCombinatorState :: GenCombinator t -> QC.Gen t
+evalGenCombinatorState gen = evalStateT gen initGenCombinatorState
 
 scaleBinary :: (a -> b -> t) -> GenCombinator a -> GenCombinator b -> GenCombinator t
 scaleBinary f l r = scale pred $ liftA2 f (scale (`div` 2) l) (scale (`div` 2) r)
 
-arbitraryBinary :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
-arbitraryBinary f = scaleBinary f arbitrary arbitrary
-
-arbitraryUnary :: ArbitraryCombinator a => (a -> b) -> GenCombinator b
-arbitraryUnary f = f <$> scale pred arbitrary
+combinatorsPerLeaf :: Int
+combinatorsPerLeaf = 4
