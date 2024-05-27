@@ -1,6 +1,6 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NamedFieldPuns   #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Main where
 
@@ -13,20 +13,26 @@ import           Test.Tasty
 import           Test.Tasty.QuickCheck    hiding (Failure, Success, arbitrary,
                                            generate)
 import           Text.Gigaparsec          hiding (result)
+import           Utils.Debug
 
 plotSampleSizes :: IO ()
 plotSampleSizes = do
   sizes <- Combinator.generate (sampleSizes 100000)
   plotCombinatorDistribution "combinator-distribution.png" sizes
 
-prop_no_crash :: String -> Property
-prop_no_crash input = ioProperty $ do
-  ParserTestCase { parser, input, result } <- generate (arbitrary :: GenParserTestCase (ParserTestCase String))
-  case parse @String (compile parser) input of
-    Failure _     -> pure $ isFailure result
-    r@(Success _) -> pure (result == r)
+prop_no_crash :: Property
+prop_no_crash = ioProperty $ do
+  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: GenParserTestCase (ParserTestCase Char))
+  -- printParser parser
+  -- printExpected expected
+  -- printInput input
+  let actual = parse @String (compile parser) input
+  -- printActual actual
+  case actual of
+    Failure _     -> pure $ isFailure expected
+    r@(Success _) -> pure (expected == r)
 
 main :: IO ()
 main = do
-  defaultMain $ localOption (QuickCheckTests 10000) $ testProperty "Main" prop_no_crash
+  defaultMain $ localOption (QuickCheckTests 1000000) $ testProperty "Main" prop_no_crash
 

@@ -12,19 +12,19 @@ import           Graphics.Rendering.Chart.Backend.Cairo
 import           Graphics.Rendering.Chart.Easy
 
 combinatorSize :: Combinator a -> Int
-combinatorSize Pure                     = 1
-combinatorSize Satisfy                  = 1
-combinatorSize Chr                      = 1
-combinatorSize Item                     = 1
-combinatorSize Str                      = 1
-combinatorSize (Atomic c)               = 1 + combinatorSize c
-combinatorSize (LookAhead c)            = 1 + combinatorSize c
-combinatorSize (Fmap (AnyCombinator c)) = 1 + combinatorSize c
-combinatorSize (Some c)                 = 1 + combinatorSize c
-combinatorSize (Many c)                 = 1 + combinatorSize c
-combinatorSize (AnyCombinator c :*> c') = combinatorSize c + combinatorSize c'
-combinatorSize (c :<* AnyCombinator c') = combinatorSize c + combinatorSize c'
-combinatorSize (Alternative c c')       = combinatorSize c + combinatorSize c'
+combinatorSize Pure                          = 1
+combinatorSize Satisfy                       = 1
+combinatorSize Chr                           = 1
+combinatorSize Item                          = 1
+combinatorSize Str                           = 1
+combinatorSize (Atomic c)                    = 1 + combinatorSize c
+combinatorSize (LookAhead c)                 = 1 + combinatorSize c
+combinatorSize (Fmap (AnyCombinator c))      = 1 + combinatorSize c
+combinatorSize (Some c)                      = 1 + combinatorSize c
+combinatorSize (Many c)                      = 1 + combinatorSize c
+combinatorSize (Then (AnyCombinator c) c')   = combinatorSize c + combinatorSize c'
+combinatorSize (Before c (AnyCombinator c')) = combinatorSize c + combinatorSize c'
+combinatorSize (Alternative c c')            = combinatorSize c + combinatorSize c'
 
 sampleSizes :: Int -> GenCombinator [Int]
 sampleSizes totalSamples = do

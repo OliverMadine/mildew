@@ -13,8 +13,8 @@ data Parser a where
   Str         :: String -> Parser String
   Atomic      :: Parser a -> Parser a
   LookAhead   :: Parser a -> Parser a
-  (:*>)       :: Parser b -> Parser a -> Parser a
-  (:<*)       :: Parser a -> Parser b -> Parser a
+  Then        :: Parser b -> Parser a -> Parser a
+  Before      :: Parser a -> Parser b -> Parser a
   Fmap        :: (b -> a) -> Parser b -> Parser a
   Some        :: Parser a -> Parser [a]
   Many        :: Parser a -> Parser [a]
@@ -32,6 +32,6 @@ instance Show (Parser a) where
   show (Fmap f c)         = "fmap (" ++ show c ++ ")"
   show (Some c)           = "some" ++ parensShow c
   show (Many c)           = "many" ++ parensShow c
-  show (c :*> c')         = parensShow c ++ " *> " ++ parensShow c'
-  show (c :<* c')         = parensShow c ++ " <* " ++ parensShow c'
+  show (Then c c')        = parensShow c ++ " *> " ++ parensShow c'
+  show (Before c c')        = parensShow c ++ " <* " ++ parensShow c'
   show (Alternative c c') = parensShow c ++ " <|> " ++ parensShow c'

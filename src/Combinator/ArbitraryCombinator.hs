@@ -15,8 +15,8 @@ advancingGenericCombinators :: [GenCombinator (Combinator a)]
 advancingGenericCombinators =
   [ arbitraryUnary Atomic
   , arbitraryUnary Fmap
-  , arbitraryBinaryEitherAdvancing (:*>)
-  , arbitraryBinaryEitherAdvancing (:<*)
+  , arbitraryBinaryEitherAdvancing Then
+  , arbitraryBinaryEitherAdvancing Before
   -- TODO: once we have better input generation then only one side
   -- of the alternative needs to maintain the advancing property.
   -- We need to make sure that the side at least one advancing side
@@ -44,7 +44,7 @@ nonAdvancingGenericLeafs = [ pure Pure ]
 
 -- HACK: we don't have any generic leafs that are advancing right now
 genericLeaf :: GenCombinator (Combinator a)
-genericLeaf = selectCombinator [pure (AnyCombinator Item :*> Pure)] nonAdvancingGenericLeafs
+genericLeaf = selectCombinator [pure (Then (AnyCombinator Item) Pure)] nonAdvancingGenericLeafs
 
 charLeaf :: GenCombinator (Combinator Char)
 charLeaf = selectCombinator [ pure Satisfy, pure Chr, pure Item ] nonAdvancingGenericLeafs
