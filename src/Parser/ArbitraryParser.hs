@@ -15,7 +15,7 @@ import           Combinator.GenCombinator       as Combinator
 import           Control.Monad.Trans.Class
 import           Parser.GenParserTestCase
 import qualified Parser.Parser                  as Parser
-import           Test.Tasty.QuickCheck          as QC hiding (Success)
+import           Test.Tasty.QuickCheck          as QC hiding (Success, generate)
 import           Text.Gigaparsec                hiding (result)
 import           Text.Gigaparsec.Char
 
@@ -30,8 +30,9 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => ArbitraryP
 
 arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> GenParserTestCase (ParserTestCase a)
 arbitraryTestCase Pure = do
-  parser <- Parser.Pure <$> lift QC.arbitrary
-  pure ParserTestCase { parser, input = "", result = Success undefined }
+  result <- lift QC.arbitrary
+  let parser = Parser.Pure result
+  pure ParserTestCase { parser, input = "", result = Success result }
 
 
 --      (*>)
