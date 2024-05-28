@@ -52,7 +52,7 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
     else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
-generate gen = QC.generate $ evalGenCombinatorState gen
+generate gen = QC.generate $ QC.resize 3 $ evalGenCombinatorState gen
 
 evalGenCombinatorState :: GenCombinator t -> QC.Gen t
 evalGenCombinatorState gen = evalStateT gen initGenCombinatorState

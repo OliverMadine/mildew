@@ -4,15 +4,18 @@
 
 module Main where
 
-import qualified Combinator.GenCombinator as Combinator
-import           Compiler.Gigaparsec      hiding (Failure, Success)
+import qualified Combinator.ArbitraryCombinator as Combinator
+import           Combinator.Combinator
+import           Combinator.GenCombinator       hiding (generate)
+import qualified Combinator.GenCombinator       as Combinator
+import           Compiler.Gigaparsec            hiding (Failure, Success)
 import           Monitoring
 import           Parser.ArbitraryParser
-import           Parser.GenParserTestCase hiding (Failure, Success)
+import           Parser.GenParserTestCase       hiding (Failure, Success)
 import           Test.Tasty
-import           Test.Tasty.QuickCheck    hiding (Failure, Success, arbitrary,
-                                           generate)
-import           Text.Gigaparsec          hiding (result)
+import           Test.Tasty.QuickCheck          hiding (Failure, Success,
+                                                 arbitrary, generate)
+import           Text.Gigaparsec                hiding (result)
 import           Utils.Debug
 
 plotSampleSizes :: IO ()
@@ -22,15 +25,21 @@ plotSampleSizes = do
 
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
-  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: GenParserTestCase (ParserTestCase Char))
-  -- printParser parser
-  -- printExpected expected
-  -- printInput input
+  -- combinator <- Combinator.generate (Combinator.arbitrary :: GenCombinator (Combinator String))
+  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: GenParserTestCase (ParserTestCase String))
   let actual = parse @String (compile parser) input
-  -- printActual actual
-  case actual of
-    Failure _     -> pure $ isFailure expected
-    r@(Success _) -> pure (expected == r)
+  let isExpectedResult = case actual of
+        (Failure _)   -> isFailure expected
+        r@(Success _) -> expected == r
+  if isExpectedResult
+    then pure True
+    else do
+      -- printCombinator combinator
+      printParser parser
+      printExpected expected
+      printInput input
+      printActual actual
+      pure False
 
 main :: IO ()
 main = do

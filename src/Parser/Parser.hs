@@ -33,5 +33,5 @@ instance Show (Parser a) where
   show (Some c)           = "some" ++ parensShow c
   show (Many c)           = "many" ++ parensShow c
   show (Then c c')        = parensShow c ++ " *> " ++ parensShow c'
-  show (Before c c')        = parensShow c ++ " <* " ++ parensShow c'
+  show (Before c c')      = parensShow c ++ " <* " ++ parensShow c'
   show (Alternative c c') = parensShow c ++ " <|> " ++ parensShow c'

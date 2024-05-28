@@ -44,7 +44,7 @@ nonAdvancingGenericLeafs = [ pure Pure ]
 
 -- HACK: we don't have any generic leafs that are advancing right now
 genericLeaf :: GenCombinator (Combinator a)
-genericLeaf = selectCombinator [pure (Then (AnyCombinator Item) Pure)] nonAdvancingGenericLeafs
+genericLeaf = selectCombinator [pure (Then (AnyCombinator Chr) Pure)] nonAdvancingGenericLeafs
 
 charLeaf :: GenCombinator (Combinator Char)
 charLeaf = selectCombinator [ pure Satisfy, pure Chr, pure Item ] nonAdvancingGenericLeafs

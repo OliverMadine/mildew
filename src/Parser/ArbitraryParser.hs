@@ -12,6 +12,7 @@ module Parser.ArbitraryParser where
 import           Combinator.ArbitraryCombinator as Combinator
 import           Combinator.Combinator
 import           Combinator.GenCombinator       as Combinator
+import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
 import           Parser.GenParserTestCase
@@ -20,16 +21,14 @@ import           Test.Tasty.QuickCheck          as QC hiding (Failure, Success,
                                                        generate)
 import           Text.Gigaparsec                hiding (result)
 
-class Show t => ArbitraryParser t where
+class Show t => ArbitraryParserTestCase t where
   arbitrary :: Show t => GenParserTestCase (ParserTestCase t)
 
-instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => ArbitraryParser a where
+instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => ArbitraryParserTestCase a where
   arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => GenParserTestCase (ParserTestCase a)
   arbitrary = do
-    -- combinator <- lift $ evalGenCombinatorState (Combinator.arbitrary :: GenCombinator (Combinator a))
-    let combinator = Fmap (AnyCombinator (Some (Then (AnyCombinator Item) Pure) :: Combinator [Int]))
+    combinator <- lift $ evalGenCombinatorState (Combinator.arbitrary :: GenCombinator (Combinator a))
     arbitraryTestCase combinator
-
 
 arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> GenParserTestCase (ParserTestCase a)
 arbitraryTestCase Pure = do
@@ -81,26 +80,20 @@ arbitraryTestCase (Fmap (AnyCombinator combinator)) = do
   pure ParserTestCase { parser = Parser.Fmap f parser, input, result = f <$> result }
 arbitraryTestCase (Some c) = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  case result of
-    Failure _ -> error "We generated a failing test case"
-    Success r -> do
-      n <- lift $ chooseInt (1, 100)
-      pure ParserTestCase
-        { parser = Parser.Some parser
-        , input = concat $ replicate n input
-        , result = Success $ replicate n r
-        }
+  n <- lift $ chooseInt (1, 100)
+  pure ParserTestCase
+    { parser = Parser.Some parser
+    , input = concat $ replicate n input
+    , result = Success $ replicate n $ extractSuccess result
+    }
 arbitraryTestCase (Many c) = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  case result of
-    Failure _ -> error "We generated a failing test case"
-    Success r -> do
-      n <- lift $ QC.oneof [pure 0, chooseInt (1, 100)]
-      pure ParserTestCase
-        { parser = Parser.Some parser
-        , input = concat $ replicate n input
-        , result = Success $ replicate n r
-        }
+  n <- lift $ QC.oneof [pure 0, chooseInt (1, 100)]
+  pure ParserTestCase
+    { parser = Parser.Many parser
+    , input = concat $ replicate n input
+    , result = Success $ replicate n $ extractSuccess result
+    }
 arbitraryTestCase (Alternative c c') = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase c
   ParserTestCase { parser = parser', input = input', result = result' } <- arbitraryTestCase c'
@@ -109,3 +102,7 @@ arbitraryTestCase (Alternative c c') = do
     , input = input -- since the LHS succeeds, we don't consume any input for the right one
     , result = result -- since the LHS succeeds
     }
+
+extractSuccess :: Result String a -> a
+extractSuccess (Success a) = a
+extractSuccess (Failure _) = error "Expected success"
