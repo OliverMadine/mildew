@@ -97,6 +97,14 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
 -- so for the implementation, we must consume the follow set for some/many
 -- y is now chosen s.t. y != x
 
+-- lookAhead(some(satisfy (`elem` [x1, x2]))) *> some(y) *> char z
+-- follow [[x1, x2], [x1, x2]] then y is chosen s.t. y == x1 (or x2 but let's use x1 for example)
+-- now, follow [[x1, x2]] and precludes [[x1]] so z = x2
+
+-- lookAhead(some(satisfy (`elem` [x1]))) *> some(y) *> char z
+-- follow [[x1], [x1]] then y is chosen s.t. y == x1
+-- some will consume the follow-set so follow = [], precludes = [x1]
+-- now z chosen such that z != x1
 
 arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> GenParserTestCase (ParserTestCase a)
 arbitraryTestCase Pure = do
