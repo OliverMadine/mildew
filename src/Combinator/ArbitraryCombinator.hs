@@ -46,8 +46,13 @@ nonAdvancingGenericLeafs = [ pure Pure ]
 genericLeaf :: GenCombinator (Combinator a)
 genericLeaf = selectCombinator [pure (Then (AnyCombinator Chr) Pure)] nonAdvancingGenericLeafs
 
+-- HACK: item is considered non-advancing because it consumes any input so we don't want to include
+-- it in repeating combinators. Slightly too restrictive but ok for now
+nonAdvancingCharLeafs :: [GenCombinator (Combinator Char)]
+nonAdvancingCharLeafs = pure Item : nonAdvancingGenericLeafs
+
 charLeaf :: GenCombinator (Combinator Char)
-charLeaf = selectCombinator [ pure Satisfy, pure Chr, pure Item ] nonAdvancingGenericLeafs
+charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingGenericLeafs
 
 stringLeaf :: GenCombinator (Combinator String)
 stringLeaf = selectCombinator [ pure Str ] nonAdvancingGenericLeafs

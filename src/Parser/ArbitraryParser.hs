@@ -11,42 +11,36 @@ module Parser.ArbitraryParser where
 
 import           Combinator.ArbitraryCombinator as Combinator
 import           Combinator.Combinator
-import           Combinator.GenCombinator       as Combinator
-import           Control.Monad
-import           Control.Monad.IO.Class
+import           Combinator.GenCombinator
 import           Control.Monad.Trans.Class
-import           Parser.GenParserTestCase
 import qualified Parser.Parser                  as Parser
-import           Test.Tasty.QuickCheck          as QC hiding (Failure, Success,
-                                                       generate)
+import           Parser.ParserTestCase
+import           Test.Tasty.QuickCheck          as QC hiding (Failure, Success)
 import           Text.Gigaparsec                hiding (result)
 
-class Show t => ArbitraryParserTestCase t where
-  arbitrary :: Show t => GenParserTestCase (ParserTestCase t)
-
-instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => ArbitraryParserTestCase a where
-  arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => GenParserTestCase (ParserTestCase a)
+instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary (ParserTestCase a) where
+  arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Gen (ParserTestCase a)
   arbitrary = do
-    combinator <- lift $ evalGenCombinatorState (Combinator.arbitrary :: GenCombinator (Combinator a))
+    combinator <- evalGenCombinatorState Combinator.arbitrary
     arbitraryTestCase combinator
 
-arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> GenParserTestCase (ParserTestCase a)
+arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> Gen (ParserTestCase a)
 arbitraryTestCase Pure = do
-  a <- lift QC.arbitrary
+  a <- QC.arbitrary
   pure ParserTestCase { parser = Parser.Pure a, input = "", result = Success a }
 arbitraryTestCase Satisfy = do
-  chars <- lift $ listOf1 QC.arbitrary
+  chars <- listOf1 QC.arbitrary
   let p = (`elem` chars)
-  c <- lift $ QC.oneof $ map pure chars
+  c <- QC.oneof $ map pure chars
   pure ParserTestCase { parser = Parser.Satisfy p, input = [c], result = Success c }
 arbitraryTestCase Chr = do
-  c <- lift QC.arbitrary
+  c <- QC.arbitrary
   pure ParserTestCase { parser = Parser.Chr c, input = [c], result = Success c }
 arbitraryTestCase Item = do
-  c <- lift QC.arbitrary
+  c <- QC.arbitrary
   pure ParserTestCase { parser = Parser.Item, input = [c], result = Success c }
 arbitraryTestCase Str = do
-  s <- lift $ listOf1 QC.arbitrary
+  s <- listOf1 QC.arbitrary
   pure ParserTestCase { parser = Parser.Str s, input = s, result = Success s }
 arbitraryTestCase (Atomic combinator) = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase combinator
@@ -75,12 +69,12 @@ arbitraryTestCase (Before c (AnyCombinator c')) = do
     , result = result
     }
 arbitraryTestCase (Fmap (AnyCombinator combinator)) = do
-  f <- lift QC.arbitrary
+  f <- QC.arbitrary
   ParserTestCase { parser, input, result } <- arbitraryTestCase combinator
   pure ParserTestCase { parser = Parser.Fmap f parser, input, result = f <$> result }
 arbitraryTestCase (Some c) = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  n <- lift $ chooseInt (1, 100)
+  n <- chooseInt (1, 100)
   pure ParserTestCase
     { parser = Parser.Some parser
     , input = concat $ replicate n input
@@ -88,7 +82,7 @@ arbitraryTestCase (Some c) = do
     }
 arbitraryTestCase (Many c) = do
   ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  n <- lift $ QC.oneof [pure 0, chooseInt (1, 100)]
+  n <- QC.oneof [pure 0, chooseInt (1, 100)]
   pure ParserTestCase
     { parser = Parser.Many parser
     , input = concat $ replicate n input

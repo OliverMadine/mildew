@@ -10,6 +10,7 @@ import qualified Test.Tasty.QuickCheck     as QC
 
 type GenCombinator t = StateT GenCombinatorState QC.Gen t
 
+-- A parser is advancing if it consumes a specific input on success
 newtype GenCombinatorState = GenCombinatorState
   { advancing :: Bool }
 

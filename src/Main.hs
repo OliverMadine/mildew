@@ -5,16 +5,13 @@
 module Main where
 
 import qualified Combinator.ArbitraryCombinator as Combinator
-import           Combinator.Combinator
-import           Combinator.GenCombinator       hiding (generate)
 import qualified Combinator.GenCombinator       as Combinator
 import           Compiler.Gigaparsec            hiding (Failure, Success)
 import           Monitoring
 import           Parser.ArbitraryParser
-import           Parser.GenParserTestCase       hiding (Failure, Success)
+import           Parser.ParserTestCase          hiding (Failure, Success)
 import           Test.Tasty
-import           Test.Tasty.QuickCheck          hiding (Failure, Success,
-                                                 arbitrary, generate)
+import           Test.Tasty.QuickCheck          hiding (Failure, Success)
 import           Text.Gigaparsec                hiding (result)
 import           Utils.Debug
 
@@ -26,7 +23,7 @@ plotSampleSizes = do
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
   -- combinator <- Combinator.generate (Combinator.arbitrary :: GenCombinator (Combinator String))
-  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: GenParserTestCase (ParserTestCase String))
+  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: Gen (ParserTestCase String))
   let actual = parse @String (compile parser) input
   let isExpectedResult = case actual of
         (Failure _)   -> isFailure expected

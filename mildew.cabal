@@ -22,7 +22,7 @@ executable mildew
         Utils.Print,
         Monitoring,
         Parser.ArbitraryParser,
-        Parser.GenParserTestCase,
+        Parser.ParserTestCase,
         Parser.Parser
     main-is: Main.hs
     build-depends:
