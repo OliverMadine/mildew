@@ -6,6 +6,7 @@ module Combinator.GenCombinator where
 import           Control.Applicative
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
+import           Parameters
 import qualified Test.Tasty.QuickCheck     as QC
 
 type GenCombinator t = StateT GenCombinatorState QC.Gen t
@@ -52,13 +53,10 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
     else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
-generate gen = QC.generate $ QC.resize 3 $ evalGenCombinatorState gen
+generate gen = QC.generate $ QC.resize combinatorSize $ evalGenCombinatorState gen
 
 evalGenCombinatorState :: GenCombinator t -> QC.Gen t
 evalGenCombinatorState gen = evalStateT gen initGenCombinatorState
 
 scaleBinary :: (a -> b -> t) -> GenCombinator a -> GenCombinator b -> GenCombinator t
 scaleBinary f l r = scale pred $ liftA2 f (scale (`div` 2) l) (scale (`div` 2) r)
-
-combinatorsPerLeaf :: Int
-combinatorsPerLeaf = 4

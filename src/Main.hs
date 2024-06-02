@@ -23,7 +23,8 @@ plotSampleSizes = do
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
   -- combinator <- Combinator.generate (Combinator.arbitrary :: GenCombinator (Combinator String))
-  ParserTestCase { parser, input, result = expected } <- generate (arbitrary :: Gen (ParserTestCase String))
+  ParserTestCase { parser, cases } <- generate (arbitrary :: Gen (ParserTestCase String))
+  let (input, expected):_ = cases -- TODO: test all cases
   let actual = parse @String (compile parser) input
   let isExpectedResult = case actual of
         (Failure _)   -> isFailure expected

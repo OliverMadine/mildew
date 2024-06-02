@@ -21,6 +21,7 @@ executable mildew
         Utils.Debug,
         Utils.Print,
         Monitoring,
+        Parameters,
         Parser.ArbitraryParser,
         Parser.ParserTestCase,
         Parser.Parser

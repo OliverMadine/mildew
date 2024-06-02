@@ -36,7 +36,7 @@ frequencyDistribution = map (\l -> (head l, length l)) . group . sort
 
 plotCombinatorDistribution :: FilePath -> [Int] -> IO ()
 plotCombinatorDistribution filePath xs = do
-  let freqDist = filter (\(n, m) -> n > 50) $ frequencyDistribution xs
+  let freqDist = frequencyDistribution xs
   let values = map fst freqDist
   let frequencies = map snd freqDist
 
