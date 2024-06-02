@@ -21,4 +21,3 @@ compile (Some c)           = some (compile c)
 compile (Many c)           = many (compile c)
 compile (Then c c')        = compile c *> compile c'
 compile (Before c c')      = compile c <* compile c'
-compile (Alternative c c') = compile c <|> compile c'

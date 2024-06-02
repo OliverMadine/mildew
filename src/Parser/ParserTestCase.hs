@@ -11,11 +11,11 @@ deriving instance Functor (Result e)
 
 data CharConstraint = OneOf [Char] | AnyChar deriving (Eq, Show)
 
-type TestCases a = [(String, Result String a)]
+type TestCase a = (String, Result String a)
 
 data ParserTestCase a = ParserTestCase
   { parser :: Parser a
-  , cases  :: TestCases a
+  , cases  :: [TestCase a]
   }
 
 isFailure :: Result String a -> Bool

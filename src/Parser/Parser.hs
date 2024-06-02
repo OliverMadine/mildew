@@ -18,7 +18,6 @@ data Parser a where
   Fmap        :: (b -> a) -> Parser b -> Parser a
   Some        :: Parser a -> Parser [a]
   Many        :: Parser a -> Parser [a]
-  Alternative :: Parser a -> Parser a -> Parser a
 
 instance Show (Parser a) where
   show :: Parser a -> String
@@ -34,4 +33,3 @@ instance Show (Parser a) where
   show (Many c)           = "many" ++ parensShow c
   show (Then c c')        = parensShow c ++ " *> " ++ parensShow c'
   show (Before c c')      = parensShow c ++ " <* " ++ parensShow c'
-  show (Alternative c c') = parensShow c ++ " <|> " ++ parensShow c'

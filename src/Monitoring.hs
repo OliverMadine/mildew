@@ -24,7 +24,6 @@ combinatorSize (Some c)                      = 1 + combinatorSize c
 combinatorSize (Many c)                      = 1 + combinatorSize c
 combinatorSize (Then (AnyCombinator c) c')   = combinatorSize c + combinatorSize c'
 combinatorSize (Before c (AnyCombinator c')) = combinatorSize c + combinatorSize c'
-combinatorSize (Alternative c c')            = combinatorSize c + combinatorSize c'
 
 sampleSizes :: Int -> GenCombinator [Int]
 sampleSizes totalSamples = do

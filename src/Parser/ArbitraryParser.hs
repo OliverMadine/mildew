@@ -12,10 +12,11 @@ module Parser.ArbitraryParser where
 import           Combinator.ArbitraryCombinator as Combinator
 import           Combinator.Combinator
 import           Combinator.GenCombinator
+import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
-import           Data.Maybe
+import           Data.Bifunctor
 import           Parameters
 import qualified Parser.Parser                  as Parser
 import           Parser.ParserTestCase
@@ -38,86 +39,112 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
   arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Gen (ParserTestCase a)
   arbitrary = do
     combinator <- evalGenCombinator Combinator.arbitrary
-    (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
-    testCases <- parserResult parser inputConstraints
+    (parser, constraints) <- evalStateT (arbitraryParserWithConstraints combinator) initGenParserInputsState
+    testCases <- resolveConstraints parser constraints
     pure $ ParserTestCase parser testCases
 
-testCase :: Gen (ParserTestCase String)
+testCase :: Gen (ParserTestCase Char)
 testCase = do
-  let combinator = Then (AnyCombinator Str) Pure
-  (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
-  testCases <- parserResult parser inputConstraints
+  let combinator = Before (Then (AnyCombinator (Atomic (Fmap (AnyCombinator Item)) :: Combinator Char)) (Fmap (AnyCombinator Satisfy))) (AnyCombinator (Then (AnyCombinator Satisfy) Satisfy))
+  (parser, constraints) <- evalStateT (arbitraryParserWithConstraints combinator) initGenParserInputsState
+  testCases <- resolveConstraints parser constraints
   pure $ ParserTestCase parser testCases
 
 -- Resolve the constraints and generate specific test cases with expected results
 -- parserResult :: Parser.Parser a -> [CharConstraint] -> Gen TestCases
-parserResult :: Parser.Parser a -> [CharConstraint] -> Gen (TestCases a)
-parserResult (Parser.Pure a) _ = pure [([], Success a)]
-parserResult (Parser.Chr char) (OneOf [char']:cs) = do
+resolveConstraints :: Parser.Parser a -> [CharConstraint] -> Gen [TestCase a]
+resolveConstraints (Parser.Pure a) _ = pure [([], Success a)]
+resolveConstraints (Parser.Satisfy p) (OneOf cs:_) = pure $ map (\c -> ([c], Success c)) cs
+resolveConstraints (Parser.Chr char) (OneOf [char']:cs) = do
   when (char /= char') $ error "Char parser does not match constraints"
   pure [([char], Success char)]
-parserResult (Parser.Str str) cs = do
+resolveConstraints (Parser.Str str) cs = do
   when (str /= map (\(OneOf [ch]) -> ch) (take (length str) cs)) $ error "String parser does not match constraints"
   pure [(str, Success str)]
-parserResult (Parser.Then p p') cs = do
-  (input, _) <- fromJust <$> parserResultSafe p cs
-  (input', result') <- fromJust <$> parserResultSafe p' (drop (length input) cs)
-  pure [(input ++ input', result')]
-
-parserResultSafe :: Parser.Parser a -> [CharConstraint] -> Gen (Maybe (String, Result String a))
-parserResultSafe p cs = do
-  result <- parserResult p cs
-  pure $ case result of
-    [(input, Success result)] -> Just (input, Success result)
-    _                         -> Nothing
-
-
-  -- something like this for the Item case
-  -- do
-  -- cases <- mapM (\constraint -> do
-  --   case constraint of
-  --     OneOf chars -> do
-  --       c <- elements chars
-  --       pure (c, Success c)
-  --     AnyChar -> do
-  --       c <- QC.arbitrary
-  --       pure (c, Success c)
-  --   ) inputConstraints
-  -- pure ParserTestCase { parser, cases }
+resolveConstraints (Parser.Atomic p) cs = resolveConstraints p cs
+resolveConstraints (Parser.Then p p') cs =
+  resolveSequencingParserConstraints p p' cs snd
+resolveConstraints Parser.Item (AnyChar:_) = do
+  cs <- resize inputsPerAnyCharConstraint $ listOf1 QC.arbitrary
+  pure [([c], Success c) | c <- cs]
+resolveConstraints (Parser.Before p p') cs =
+  resolveSequencingParserConstraints p p' cs fst
+resolveConstraints (Parser.Fmap f p) cs = do
+  cases <- resolveConstraints p cs
+  pure $ map (second (f <$>)) cases
+resolveConstraints (Parser.Some p) cs = do
+  cases <- resolveConstraints p cs
+  pure $ [(input, (:[]) <$> result) | (input, result) <- cases]
+resolveConstraints _ _ = error "Invalid case in constraint resolver" undefined
 
 -- TODO: the list of char constraints should probably be a dequeue
 -- Choose a *specific* parser and generate the input constraints for that parser
-arbitraryParserWithInputConstraints :: (Arbitrary a, Show a) => Combinator a -> GenParserInputs (Parser.Parser a, [CharConstraint])
-arbitraryParserWithInputConstraints Pure = do
-  a <- lift QC.arbitrary
+arbitraryParserWithConstraints :: (Arbitrary a, Show a) => Combinator a -> GenParserInputs (Parser.Parser a, [CharConstraint])
+arbitraryParserWithConstraints Pure = do
+  a <- lift $ resize literalSize QC.arbitrary
   pure (Parser.Pure a, [])
-arbitraryParserWithInputConstraints Satisfy = undefined
-arbitraryParserWithInputConstraints Chr = do
+arbitraryParserWithConstraints Satisfy = do
+  modify consumeChar
+  n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
+  cs <- lift $ replicate n <$> QC.arbitrary
+  pure (Parser.Satisfy (`elem` cs), [OneOf cs])
+arbitraryParserWithConstraints Chr = do
   c <- arbitraryConstrainedChar
   pure (Parser.Chr c, [OneOf [c]])
-arbitraryParserWithInputConstraints Str = do
-  n <- lift $ chooseInt (1, stringMaxSize)
+arbitraryParserWithConstraints Str = do
+  n <- lift $ chooseInt (1, literalSize)
   str <- replicate n <$> arbitraryConstrainedChar
   pure (Parser.Str str, map (OneOf . (:[])) str)
-arbitraryParserWithInputConstraints (Atomic c) = undefined
-arbitraryParserWithInputConstraints (LookAhead c) = undefined
-arbitraryParserWithInputConstraints Item = undefined
-arbitraryParserWithInputConstraints (Then (AnyCombinator c) c') = do
-  (parser, inputConstraints) <- arbitraryParserWithInputConstraints c
-  (parser', inputConstraints') <- arbitraryParserWithInputConstraints c'
-  pure (Parser.Then parser parser', inputConstraints ++ inputConstraints')
-arbitraryParserWithInputConstraints (Before c (AnyCombinator c')) = undefined
-arbitraryParserWithInputConstraints (Fmap (AnyCombinator c)) = undefined
-arbitraryParserWithInputConstraints (Some c) = undefined
-arbitraryParserWithInputConstraints (Many c) = undefined
-arbitraryParserWithInputConstraints (Alternative c c') = undefined
+arbitraryParserWithConstraints (Atomic c) = do
+  (parser, constraints) <- arbitraryParserWithConstraints c
+  pure (Parser.Atomic parser, constraints)
+arbitraryParserWithConstraints (LookAhead c) = undefined
+arbitraryParserWithConstraints Item = do
+  modify consumeChar
+  pure (Parser.Item, [AnyChar])
+arbitraryParserWithConstraints (Then (AnyCombinator c) c') = do
+  (parser, constraints) <- arbitraryParserWithConstraints c
+  (parser', constraints') <- arbitraryParserWithConstraints c'
+  pure (Parser.Then parser parser', constraints ++ constraints')
+arbitraryParserWithConstraints (Before c (AnyCombinator c')) = do
+  (parser, constraints) <- arbitraryParserWithConstraints c
+  (parser', constraints') <- arbitraryParserWithConstraints c'
+  pure (Parser.Before parser parser', constraints ++ constraints')
+arbitraryParserWithConstraints (Fmap (AnyCombinator c)) = do
+  (parser, constraints) <- arbitraryParserWithConstraints c
+  f <- lift QC.arbitrary
+  pure (Parser.Fmap f parser, constraints)
+arbitraryParserWithConstraints (Some c) = do
+  (parser, constraints) <- arbitraryParserWithConstraints c
+  -- Some will consume as much as possible so `some` must consume the follow and preclude sets if
+  -- the sub-parser constraints are covered
+  modify (\s@(GenParserInputsState{follows}) -> s { follows = dropWhile (constraintCovered constraints) follows })
+  -- TODO: If the follow-set is empty, we may randomly choose to generate more input to be consumed by
+  -- the sub-parser
+  -- The constraints of the sub-parser are precluded. This is to ensure the some combinator does not
+  -- consume the inputs intended for the next parser in the sequence
+  modify (\s@(GenParserInputsState{precludes}) -> s { precludes = precludes ++ constraints })
+  pure (Parser.Some parser, constraints)
+arbitraryParserWithConstraints (Many c) = undefined
+
+-- some(atomic(char 'a' *> lookAhead(char 'a'))) *> char 'a' *> char 'b'
+-- t0: follow = ['a',['a', 'b'],'a','b']
+-- t1: follow = ['b','a','b'] char eval
+-- t1: follow = ['a','a','b'] lookAhead eval
+-- t1: follow = ['a','b'] some eval again
+-- t1: follow = ['a','b'] some no longer valid as ['a','a'] not in follow
+-- t1: follow = ['b'] char eval
+-- t1: follow = [] char eval
 
 extractSuccess :: Result String a -> a
 extractSuccess (Success a) = a
 extractSuccess (Failure _) = error "Expected success"
 
 consumeChar :: GenParserInputsState -> GenParserInputsState
-consumeChar s@(GenParserInputsState { follows, precludes }) = s { follows = tailsOrEmpty follows, precludes = tailsOrEmpty precludes }
+consumeChar s@(GenParserInputsState { follows, precludes }) = s {
+  follows = tailsOrEmpty follows,
+  precludes = tailsOrEmpty precludes
+  }
 
 tailsOrEmpty :: [a] -> [a]
 tailsOrEmpty []     = []
@@ -132,7 +159,7 @@ arbitraryPrecludedChar (c@(OneOf xs):constraints) = do
       ]
 arbitraryPrecludedChar _ = QC.arbitrary
 
-arbitraryConstrainedChar :: StateT GenParserInputsState Gen Char
+arbitraryConstrainedChar :: GenParserInputs Char
 arbitraryConstrainedChar = do
   GenParserInputsState { follows, precludes } <- get
   modify consumeChar
@@ -145,3 +172,22 @@ arbitraryCharExcluding xs = elements [c | c <- [' ', '~'], c `notElem` xs]
 
 evalGenParserInputs :: GenParserInputs t -> QC.Gen t
 evalGenParserInputs gen = evalStateT gen initGenParserInputsState
+
+resolveSequencingParserConstraints :: Parser.Parser a1 -> Parser.Parser a2 -> [CharConstraint] -> ((Result String a1, Result String a2) -> b) -> Gen [([Char], b)]
+resolveSequencingParserConstraints p p' cs f = do
+  cases <- resolveConstraints p cs
+  let cs' = drop (testCasesInputLength cases) cs
+  cases' <- resolveConstraints p' cs'
+  pure $ zipWith (\(i, r) (i', r') -> (i ++ i', f (r, r'))) cases cases'
+
+testCasesInputLength :: [TestCase a] -> Int
+testCasesInputLength [] = error "Cannot find input length for empty test cases"
+testCasesInputLength ((input, _):testCases) =
+  assert (all (\(i, _) -> length i == length input) testCases) (length input)
+
+-- Needs to be atomic in a sense
+-- If no matter what we choose in the follow set, it parses, then the constraint is covered
+constraintCovered :: [CharConstraint] -> CharConstraint -> Bool
+constraintCovered (OneOf cs:_) (OneOf cs') = all (`elem` cs) cs'
+constraintCovered (AnyChar:_) _ = True
+constraintCovered [] _ = error "Cannot check for constraint coverage without constraints"
