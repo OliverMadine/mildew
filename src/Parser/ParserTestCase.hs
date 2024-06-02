@@ -3,18 +3,19 @@
 
 module Parser.ParserTestCase where
 
-import qualified Combinator.GenCombinator  as Combinator
-import           Control.Monad.Trans.State
+import qualified Combinator.GenCombinator as Combinator
 import           Parser.Parser
-import           Text.Gigaparsec           hiding (result)
+import           Text.Gigaparsec
 
 deriving instance Functor (Result e)
 
 data CharConstraint = OneOf [Char] | AnyChar deriving (Eq, Show)
 
+type TestCases a = [(String, Result String a)]
+
 data ParserTestCase a = ParserTestCase
   { parser :: Parser a
-  , cases :: [(String, Result String a)]
+  , cases  :: TestCases a
   }
 
 isFailure :: Result String a -> Bool

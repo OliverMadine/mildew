@@ -22,7 +22,7 @@ plotSampleSizes = do
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
   -- ParserTestCase { parser, cases } <- generate (arbitrary :: Gen (ParserTestCase String))
-  ParserTestCase { parser, cases } <- generate arbitraryTestCase
+  ParserTestCase { parser, cases } <- generate testCase
   let (input, expected):_ = cases -- TODO: test all cases
   let actual = parse @String (compile parser) input
   let isExpectedResult = case actual of

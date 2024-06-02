@@ -12,8 +12,10 @@ module Parser.ArbitraryParser where
 import           Combinator.ArbitraryCombinator as Combinator
 import           Combinator.Combinator
 import           Combinator.GenCombinator
+import           Control.Monad
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
+import           Data.Maybe
 import           Parameters
 import qualified Parser.Parser                  as Parser
 import           Parser.ParserTestCase
@@ -37,17 +39,51 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
   arbitrary = do
     combinator <- evalGenCombinator Combinator.arbitrary
     (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
-    pure $ parserResult parser inputConstraints
+    testCases <- parserResult parser inputConstraints
+    pure $ ParserTestCase parser testCases
 
-arbitraryTestCase :: Gen (ParserTestCase String)
-arbitraryTestCase = do
+testCase :: Gen (ParserTestCase String)
+testCase = do
   let combinator = Then (AnyCombinator Str) Pure
   (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
-  pure $ parserResult parser inputConstraints
+  testCases <- parserResult parser inputConstraints
+  pure $ ParserTestCase parser testCases
 
--- Resolve the constraints an generate specific test cases with expected results
-parserResult :: Parser.Parser a -> [CharConstraint] -> ParserTestCase a
-parserResult parser inputConstraints = undefined
+-- Resolve the constraints and generate specific test cases with expected results
+-- parserResult :: Parser.Parser a -> [CharConstraint] -> Gen TestCases
+parserResult :: Parser.Parser a -> [CharConstraint] -> Gen (TestCases a)
+parserResult (Parser.Pure a) _ = pure [([], Success a)]
+parserResult (Parser.Chr char) (OneOf [char']:cs) = do
+  when (char /= char') $ error "Char parser does not match constraints"
+  pure [([char], Success char)]
+parserResult (Parser.Str str) cs = do
+  when (str /= map (\(OneOf [ch]) -> ch) (take (length str) cs)) $ error "String parser does not match constraints"
+  pure [(str, Success str)]
+parserResult (Parser.Then p p') cs = do
+  (input, _) <- fromJust <$> parserResultSafe p cs
+  (input', result') <- fromJust <$> parserResultSafe p' (drop (length input) cs)
+  pure [(input ++ input', result')]
+
+parserResultSafe :: Parser.Parser a -> [CharConstraint] -> Gen (Maybe (String, Result String a))
+parserResultSafe p cs = do
+  result <- parserResult p cs
+  pure $ case result of
+    [(input, Success result)] -> Just (input, Success result)
+    _                         -> Nothing
+
+
+  -- something like this for the Item case
+  -- do
+  -- cases <- mapM (\constraint -> do
+  --   case constraint of
+  --     OneOf chars -> do
+  --       c <- elements chars
+  --       pure (c, Success c)
+  --     AnyChar -> do
+  --       c <- QC.arbitrary
+  --       pure (c, Success c)
+  --   ) inputConstraints
+  -- pure ParserTestCase { parser, cases }
 
 -- TODO: the list of char constraints should probably be a dequeue
 -- Choose a *specific* parser and generate the input constraints for that parser
@@ -66,7 +102,10 @@ arbitraryParserWithInputConstraints Str = do
 arbitraryParserWithInputConstraints (Atomic c) = undefined
 arbitraryParserWithInputConstraints (LookAhead c) = undefined
 arbitraryParserWithInputConstraints Item = undefined
-arbitraryParserWithInputConstraints (Then (AnyCombinator c) c') = undefined
+arbitraryParserWithInputConstraints (Then (AnyCombinator c) c') = do
+  (parser, inputConstraints) <- arbitraryParserWithInputConstraints c
+  (parser', inputConstraints') <- arbitraryParserWithInputConstraints c'
+  pure (Parser.Then parser parser', inputConstraints ++ inputConstraints')
 arbitraryParserWithInputConstraints (Before c (AnyCombinator c')) = undefined
 arbitraryParserWithInputConstraints (Fmap (AnyCombinator c)) = undefined
 arbitraryParserWithInputConstraints (Some c) = undefined
