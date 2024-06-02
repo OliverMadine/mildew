@@ -35,10 +35,15 @@ initGenParserInputsState = GenParserInputsState
 instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary (ParserTestCase a) where
   arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Gen (ParserTestCase a)
   arbitrary = do
-    combinator <- evalGenCombinatorState Combinator.arbitrary
+    combinator <- evalGenCombinator Combinator.arbitrary
     (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
     pure $ parserResult parser inputConstraints
 
+arbitraryTestCase :: Gen (ParserTestCase String)
+arbitraryTestCase = do
+  let combinator = Then (AnyCombinator Str) Pure
+  (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
+  pure $ parserResult parser inputConstraints
 
 -- Resolve the constraints an generate specific test cases with expected results
 parserResult :: Parser.Parser a -> [CharConstraint] -> ParserTestCase a
@@ -57,7 +62,7 @@ arbitraryParserWithInputConstraints Chr = do
 arbitraryParserWithInputConstraints Str = do
   n <- lift $ chooseInt (1, stringMaxSize)
   str <- replicate n <$> arbitraryConstrainedChar
-  pure (Parser.Str str, [OneOf str])
+  pure (Parser.Str str, map (OneOf . (:[])) str)
 arbitraryParserWithInputConstraints (Atomic c) = undefined
 arbitraryParserWithInputConstraints (LookAhead c) = undefined
 arbitraryParserWithInputConstraints Item = undefined
@@ -98,3 +103,6 @@ arbitraryConstrainedChar = do
 
 arbitraryCharExcluding :: [Char] -> Gen Char
 arbitraryCharExcluding xs = elements [c | c <- [' ', '~'], c `notElem` xs]
+
+evalGenParserInputs :: GenParserInputs t -> QC.Gen t
+evalGenParserInputs gen = evalStateT gen initGenParserInputsState

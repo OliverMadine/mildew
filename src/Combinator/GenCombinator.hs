@@ -53,10 +53,10 @@ selectCombinator advancingCombinators nonAdvancingCombinators = do
     else oneof $ nonAdvancingCombinators ++ advancingCombinators
 
 generate :: GenCombinator t -> IO t
-generate gen = QC.generate $ QC.resize combinatorSize $ evalGenCombinatorState gen
+generate gen = QC.generate $ QC.resize combinatorSize $ evalGenCombinator gen
 
-evalGenCombinatorState :: GenCombinator t -> QC.Gen t
-evalGenCombinatorState gen = evalStateT gen initGenCombinatorState
+evalGenCombinator :: GenCombinator t -> QC.Gen t
+evalGenCombinator gen = evalStateT gen initGenCombinatorState
 
 scaleBinary :: (a -> b -> t) -> GenCombinator a -> GenCombinator b -> GenCombinator t
 scaleBinary f l r = scale pred $ liftA2 f (scale (`div` 2) l) (scale (`div` 2) r)

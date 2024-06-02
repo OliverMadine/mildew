@@ -4,7 +4,6 @@
 
 module Main where
 
-import qualified Combinator.ArbitraryCombinator as Combinator
 import qualified Combinator.GenCombinator       as Combinator
 import           Compiler.Gigaparsec            hiding (Failure, Success)
 import           Monitoring
@@ -22,8 +21,8 @@ plotSampleSizes = do
 
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
-  -- combinator <- Combinator.generate (Combinator.arbitrary :: GenCombinator (Combinator String))
-  ParserTestCase { parser, cases } <- generate (arbitrary :: Gen (ParserTestCase String))
+  -- ParserTestCase { parser, cases } <- generate (arbitrary :: Gen (ParserTestCase String))
+  ParserTestCase { parser, cases } <- generate arbitraryTestCase
   let (input, expected):_ = cases -- TODO: test all cases
   let actual = parse @String (compile parser) input
   let isExpectedResult = case actual of
@@ -32,7 +31,6 @@ prop_no_crash = ioProperty $ do
   if isExpectedResult
     then pure True
     else do
-      -- printCombinator combinator
       printParser parser
       printExpected expected
       printInput input
