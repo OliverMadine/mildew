@@ -10,10 +10,11 @@ import           Text.Gigaparsec           hiding (result)
 
 deriving instance Functor (Result e)
 
+data CharConstraint = OneOf [Char] | AnyChar deriving (Eq, Show)
+
 data ParserTestCase a = ParserTestCase
   { parser :: Parser a
-  , input  :: String
-  , result :: Result String a
+  , cases :: [(String, Result String a)]
   }
 
 isFailure :: Result String a -> Bool

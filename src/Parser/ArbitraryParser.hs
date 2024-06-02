@@ -17,33 +17,34 @@ import           Control.Monad
 import           Control.Monad.Trans.Class
 import           Control.Monad.Trans.State
 import           Data.Char
-import           Data.Maybe                     (fromMaybe)
 import qualified Parser.Parser                  as Parser
 import           Parser.ParserTestCase
 import           Test.Tasty.QuickCheck          as QC hiding (Failure, Success)
 import           Text.Gigaparsec                hiding (result)
 
-type GenParserTestCase t = StateT GenParserTestCaseState QC.Gen t
+type GenParserInputs t = StateT GenParserInputsState QC.Gen t
 
-data CharConstraint = OneOf [Char] | AnyChar
-
--- Constraints on the following n chars
-data GenParserTestCaseState = GenParserTestCaseState {
-  -- Must follow
+-- Constraints on the following n characters
+data GenParserInputsState = GenParserInputsState {
   follows   :: [CharConstraint],
-  -- Must not all follow
   precludes :: [CharConstraint]
 }
 
-initGenParserTestCaseState :: GenParserTestCaseState
-initGenParserTestCaseState = GenParserTestCaseState
+initGenParserInputsState :: GenParserInputsState
+initGenParserInputsState = GenParserInputsState
   { follows = [], precludes = [] }
 
 instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary (ParserTestCase a) where
   arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Gen (ParserTestCase a)
   arbitrary = do
     combinator <- evalGenCombinatorState Combinator.arbitrary
-    evalStateT (arbitraryTestCase combinator) initGenParserTestCaseState
+    (parser, inputConstraints) <- evalStateT (arbitraryParserWithInputConstraints combinator) initGenParserInputsState
+    pure $ parserResult parser inputConstraints
+
+
+-- Resolve the constraints an generate specific test cases with expected results
+parserResult :: Parser.Parser a -> [CharConstraint] -> ParserTestCase a
+parserResult parser inputConstraints = undefined
 
 -- many(satisfy f *> char *> char *> string) *> item *> char *> char *> char *> char
 -- make the above work
@@ -56,25 +57,25 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
 -- many(satisfy isLower *> a *> item *> b) *> item *> a *> z *> t *> item
 -- invalid parser
 -- many(satisfy isLower *> a *> item *> b) *> item *> a *> z *> b *> item
--- input
+-- inputs
 -- "aaab bazb caztf"
--- invalid input
+-- invalid inputs
 -- "aaab bazb cazbf" (invalid as many consumes all)
 
 -- Let's say the bracketing is as follows to guide the recursive example
 -- (many(satisfy isLower *> a *> item *> b) *> item) *> ((a *> z) *> (t *> item))
--- *>: recurse left and find the follow set and input
+-- *>: recurse left and find the follow set and inputs
 -- lhs: [a*b]
 
--- so basically we can always pick randomly unless it is the last non-any character in the precludes
--- set
+-- so basically we can always pick randomly unless it is the last non-any character is in the
+-- precludes set
 
 -- question: do i need multiple precludes sets?
 -- no but we need to support predicates so each entry can be a set of allowed characters
 
 -- lookAhead(char *> char) *> many(char)
 -- lookAhead(a *> b) *> many(a)
--- this is fine as long as lookAhead doesn't add to input it only add to the follow set
+-- this is fine as long as lookAhead doesn't add to inputs it only add to the follow set
 -- then we take parse (lookAhead(a *> b) *> many(a)) "ab"
 
 -- ok this isn't too bad, ready
@@ -106,107 +107,80 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
 -- some will consume the follow-set so follow = [], precludes = [x1]
 -- now z chosen such that z != x1
 
-arbitraryTestCase :: (Arbitrary a, Show a) => Combinator a -> GenParserTestCase (ParserTestCase a)
-arbitraryTestCase Pure = do
+-- lookahead(satisfy (`elem` [x1, x2])) *> lookahead(some(satisfy (`elem` ys@[y1, y2]))) *> char
+-- follow [[x1, x2]] then ys is chosen as a random subset of [x1, x2], follow = []
+-- repetitions is chosen as 2 so inputs = [[y1, y2], [y1, y2]]
+-- precludes = inputs = [[y1, y2], [y1, y2]]
+-- then we evaluate the lookAhead so
+-- follows = inputs = [[y1, y2], [y1, y2]]
+-- precludes = []
+-- inputs = []
+-- z is chosen s.t. z `elem` [y1, y2]
+-- inputs = [z]
+
+-- TODO: the list of char constraints should probably be a dequeue
+-- Choose a *specific* parser and generate the input constraints for that parser
+arbitraryParserWithInputConstraints :: (Arbitrary a, Show a) => Combinator a -> GenParserInputs (Parser.Parser a, [CharConstraint])
+arbitraryParserWithInputConstraints Pure = do
   a <- lift QC.arbitrary
-  pure ParserTestCase { parser = Parser.Pure a, input = "", result = Success a }
-arbitraryTestCase Satisfy = do
-  state <- get
-  chars <- undefined -- fromMaybe (lift . listOf1 $ arbitraryWithPrecludingConstraints state) (nextFollowingChars state)
-  modify consumeFollowCharacter
-  -- TODO: update the precludes set?
-  c <- lift $ QC.oneof $ map pure chars
-  pure ParserTestCase { parser = Parser.Satisfy (`elem` chars), input = [c], result = Success c }
-arbitraryTestCase Chr = do
-  c <- lift QC.arbitrary
-  pure ParserTestCase { parser = Parser.Chr c, input = [c], result = Success c }
-arbitraryTestCase Item = do
-  c <- lift QC.arbitrary
-  pure ParserTestCase { parser = Parser.Item, input = [c], result = Success c }
-arbitraryTestCase Str = do
-  s <- lift $ listOf1 QC.arbitrary
-  pure ParserTestCase { parser = Parser.Str s, input = s, result = Success s }
-arbitraryTestCase (Atomic combinator) = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase combinator
-  pure ParserTestCase { parser = Parser.Atomic parser, input, result = result }
-arbitraryTestCase (LookAhead c) = do
-  -- we can write this by having the inner parser consume the follow set then
-  -- we can take the input produces add it to the new follow set and discard
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  pure ParserTestCase
-    { parser = Parser.LookAhead parser
-    , input
-    , result
-    }
-arbitraryTestCase (Then (AnyCombinator c) c') = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  ParserTestCase { parser = parser', input = input', result = result' } <- arbitraryTestCase c'
-  pure ParserTestCase
-    { parser = Parser.Then parser parser'
-    , input = input ++ input'
-    , result = result'
-    }
-arbitraryTestCase (Before c (AnyCombinator c')) = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  ParserTestCase { parser = parser', input = input', result = result' } <- arbitraryTestCase c'
-  pure ParserTestCase
-    { parser = Parser.Before parser parser'
-    , input = input ++ input'
-    , result = result
-    }
-arbitraryTestCase (Fmap (AnyCombinator combinator)) = do
-  f <- lift QC.arbitrary
-  ParserTestCase { parser, input, result } <- arbitraryTestCase combinator
-  pure ParserTestCase { parser = Parser.Fmap f parser, input, result = f <$> result }
-arbitraryTestCase (Some c) = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  n <- lift $ chooseInt (1, 100)
-  pure ParserTestCase
-    { parser = Parser.Some parser
-    , input = concat $ replicate n input
-    , result = Success $ replicate n $ extractSuccess result
-    }
-arbitraryTestCase (Many c) = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  n <- lift $ QC.oneof [pure 0, chooseInt (1, 100)]
-  pure ParserTestCase
-    { parser = Parser.Many parser
-    , input = concat $ replicate n input
-    , result = Success $ replicate n $ extractSuccess result
-    }
-arbitraryTestCase (Alternative c c') = do
-  ParserTestCase { parser, input, result } <- arbitraryTestCase c
-  ParserTestCase { parser = parser', input = input', result = result' } <- arbitraryTestCase c'
-  pure ParserTestCase
-    { parser = Parser.Alternative parser parser'
-    , input = input -- since the LHS succeeds, we don't consume any input for the right one
-    , result = result -- since the LHS succeeds
-    }
+  pure (Parser.Pure a, [OneOf []])
+-- arbitraryParserWithInputConstraints Satisfy = do
+--   state <- get
+--   chars <- undefined
+--   c <- lift $ QC.oneof $ map pure chars
+--   pure ParserTestCase { parser = Parser.Satisfy (`elem` chars), inputs = [c], result = Success c }
+arbitraryParserWithInputConstraints Chr = do
+  GenParserInputsState { follows, precludes } <- get
+  modify consumeChar
+  c <- lift $ case follows of
+    (OneOf cs:_) -> QC.elements cs
+    _            -> arbitraryPrecluding precludes
+  pure (Parser.Chr c, [OneOf [c]])
+arbitraryParserWithInputConstraints Item = pure (Parser.Item, [])
+-- arbitraryParserWithInputConstraints (Then (AnyCombinator c) c') = do
+--   ParserTestCase { parser, inputs, result } <- arbitraryParserWithInputConstraints c
+--   ParserTestCase { parser = parser', inputs = inputs', result = result' } <- arbitraryParserWithInputConstraints c'
+--   pure ParserTestCase
+--     { parser = Parser.Then parser parser'
+--     , inputs = inputs ++ inputs'
+--     , result = result'
+--     }
+-- arbitraryParserWithInputConstraints (Before c (AnyCombinator c')) = do
+--   ParserTestCase { parser, inputs, result } <- arbitraryParserWithInputConstraints c
+--   ParserTestCase { parser = parser', inputs = inputs', result = result' } <- arbitraryParserWithInputConstraints c'
+--   pure ParserTestCase
+--     { parser = Parser.Before parser parser'
+--     , inputs = inputs ++ inputs'
+--     , result = result
+--     }
 
 extractSuccess :: Result String a -> a
 extractSuccess (Success a) = a
 extractSuccess (Failure _) = error "Expected success"
 
-consumeFollowCharacter :: GenParserTestCaseState -> GenParserTestCaseState
-consumeFollowCharacter s@(GenParserTestCaseState { follows = [] }) = s
-consumeFollowCharacter s@(GenParserTestCaseState { follows = _:xs }) = s { follows = xs }
+consumeChar :: GenParserInputsState -> GenParserInputsState
+consumeChar s@(GenParserInputsState { follows, precludes }) = s { follows = tailsOrEmpty follows, precludes = tailsOrEmpty precludes }
 
--- assertFollowsNonOverlapping :: Applicative f => GenParserTestCaseState -> f ()
--- assertFollowsNonOverlapping (GenParserTestCaseState { follows, precludes }) =
+tailsOrEmpty :: [a] -> [a]
+tailsOrEmpty []     = []
+tailsOrEmpty (_:xs) = xs
+
+-- assertFollowsNonOverlapping :: Applicative f => GenParserInputsState -> f ()
+-- assertFollowsNonOverlapping (GenParserInputsState { follows, precludes }) =
   -- when (all (\fs -> all (all (`notElem` fs)) precludes) follows) $ error "Overlapping follows and non-overlapping"
 
--- arbitraryCharsWithFollowConstraints :: GenParserTestCaseState -> Gen Char
--- arbitraryCharsWithFollowConstraints (GenParserTestCaseState { follows = (OneOf xs):constraints }) = 
---   chooseAny xs 
+-- arbitraryCharsWithFollowConstraints :: GenParserInputsState -> Gen Char
+-- arbitraryCharsWithFollowConstraints (GenParserInputsState { follows = (OneOf xs):constraints }) =
+--   chooseAny xs
 
--- arbitraryWithPrecludingConstraints :: GenParserTestCaseState -> Gen Char
--- arbitraryWithPrecludingConstraints (GenParserTestCaseState { precludes = c@(OneOf xs):constraints }) = do
---   frequency
---       [ (1, arbitraryCharExcluding xs)
---       -- if c is the final precluding constraint, we must not select from xs. Otherwise, we can 
---       , (if all (== AnyChar) constraints then 0 else 1, QC.arbitrary)
---       ]
--- arbitraryWithPrecludingConstraints _ = QC.arbitrary
+arbitraryPrecluding :: [CharConstraint] -> Gen Char
+arbitraryPrecluding (c@(OneOf xs):constraints) = do
+  frequency
+      [ (1, arbitraryCharExcluding xs)
+      -- if c is the final precluding constraint, we must not select from xs. Otherwise, we can
+      , (if all (== AnyChar) constraints then 0 else 1, QC.arbitrary)
+      ]
+arbitraryPrecluding _ = QC.arbitrary
 
 arbitraryCharExcluding :: [Char] -> Gen Char
 arbitraryCharExcluding xs = elements [c | c <- [' ', '~'], c `notElem` xs]
