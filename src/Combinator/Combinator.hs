@@ -14,6 +14,7 @@ module Combinator.Combinator where
 import           Test.Tasty.QuickCheck
 import           Utils.Print
 
+-- Represents the structure of a parser. Fully inspectable and serializable as all terms are omitted
 data Combinator a where
   Pure        :: Combinator a
   Satisfy     :: Combinator Char

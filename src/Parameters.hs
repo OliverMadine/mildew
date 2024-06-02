@@ -1,19 +1,19 @@
 module Parameters where
 
 literalSize :: Int
-literalSize = 5
+literalSize = 3
 
 combinatorsPerLeaf :: Int
-combinatorsPerLeaf = 4
+combinatorsPerLeaf = 3
 
 combinatorSize :: Int
-combinatorSize = 4
+combinatorSize = 3
 
 inputsPerAnyCharConstraint :: Int
-inputsPerAnyCharConstraint = 5
+inputsPerAnyCharConstraint = 3
 
 charsPerSatisfyPredicate :: Int
-charsPerSatisfyPredicate = 30
+charsPerSatisfyPredicate = 2
 
 manyMaxSize :: Int
-manyMaxSize = 5
+manyMaxSize = 3

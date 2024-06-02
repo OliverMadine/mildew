@@ -3,13 +3,22 @@
 
 module Parser.ParserTestCase where
 
-import qualified Combinator.GenCombinator as Combinator
+import           Control.Monad.Trans.State
 import           Parser.Parser
+import qualified Test.Tasty.QuickCheck     as QC
 import           Text.Gigaparsec
 
 deriving instance Functor (Result e)
 
 data CharConstraint = OneOf [Char] | AnyChar deriving (Eq, Show)
+
+type GenParser t = StateT GenParserState QC.Gen t
+
+-- Constraints on the following n characters
+data GenParserState = GenParserState {
+  follows   :: [CharConstraint],
+  precludes :: [CharConstraint]
+} deriving (Show)
 
 type TestCase a = (String, Result String a)
 

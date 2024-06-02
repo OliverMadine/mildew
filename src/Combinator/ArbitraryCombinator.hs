@@ -20,22 +20,23 @@ advancingGenericCombinators =
   ]
 
 nonAdvancingGenericCombinators :: [GenCombinator (Combinator a)]
--- HACK: We cannot generate successful inputs for partial consumption in the lookahead case
-nonAdvancingGenericCombinators = [ arbitraryUnary (LookAhead . Atomic)]
+-- HACK: We cannot generate successful inputs for partial consumption in the lookAhead case
+nonAdvancingGenericCombinators = [ arbitraryUnary LookAhead]
+-- nonAdvancingGenericCombinators = [ arbitraryUnary (LookAhead . Atomic)]
 
 genericCombinator :: GenCombinator (Combinator a)
-genericCombinator = oneof advancingGenericCombinators
--- selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators
+genericCombinator = selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators
 
 advancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
-advancingListCombinators = withAdvancing (arbitraryUnary Some) : advancingGenericCombinators
+advancingListCombinators = advancingGenericCombinators
+-- advancingListCombinators = withAdvancing (arbitraryUnary Some) : advancingGenericCombinators
 
 nonAdvancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
-nonAdvancingListCombinators = withAdvancing (arbitraryUnary Many) : nonAdvancingGenericCombinators
+nonAdvancingListCombinators = nonAdvancingGenericCombinators
+-- nonAdvancingListCombinators = withAdvancing (arbitraryUnary Many) nonAdvancingGenericCombinators
 
 listCombinator :: (Show a, QC.Arbitrary a) => GenCombinator (Combinator [a])
-listCombinator = oneof advancingListCombinators
--- listCombinator = selectCombinator advancingListCombinators nonAdvancingListCombinators
+listCombinator = selectCombinator advancingListCombinators nonAdvancingListCombinators
 
 nonAdvancingGenericLeafs :: [GenCombinator (Combinator a)]
 nonAdvancingGenericLeafs = [ pure Pure ]
