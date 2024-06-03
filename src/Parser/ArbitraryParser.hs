@@ -20,7 +20,8 @@ import           Control.Monad.Trans.State
 import           Data.Bifunctor
 import           Debug.Trace
 import           Parameters
-import           Parser.Parser                  (Parser)
+import           Parser.Parser                  (CharConstraint (..), Parser,
+                                                 inputConstraints)
 import qualified Parser.Parser                  as Parser
 import           Parser.ParserTestCase
 import           Test.Tasty.QuickCheck          as QC hiding (Failure, Success)
@@ -37,15 +38,19 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
     (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
     remainingInput <- evalStateT consumeRemainingConstraints state
     testCases <- arbitraryTestCases parser
-    let testCases' = traceShow state $ [(input ++ remainingInput, result) | (input, result) <- testCases]
+    -- This doesn't work as the arbitrarily chosen remaining input does not correspond to the chosen
+    -- input for the test case result
+    let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
     pure $ ParserTestCase parser testCases'
 
 testCase :: Gen (ParserTestCase Char)
 testCase = do
-  let combinator = Then (AnyCombinator (LookAhead Chr)) (Before (Then (AnyCombinator Chr) Pure) (AnyCombinator Chr))
-  parser <- evalStateT (arbitraryParser combinator) initGenParserState
+  let combinator = Then (AnyCombinator (LookAhead (Then (AnyCombinator Chr) Chr))) Satisfy
+  (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
   testCases <- arbitraryTestCases parser
-  pure $ ParserTestCase parser testCases
+  remainingInput <- evalStateT consumeRemainingConstraints state
+  let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
+  pure $ ParserTestCase parser testCases'
 
 -- Resolve the constraints and generate specific test cases with expected results
 arbitraryTestCases :: Parser a -> Gen [TestCase a]
@@ -70,31 +75,33 @@ arbitraryTestCases (Parser.Some n p) = do
   pure $ map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
 
 -- TODO: the list of char constraints should be a dequeue for performance reasons
--- Choose a *specific* parser and generate the input constraints for that parser
+-- Choose a specific parser while tracking specific input constraints on the Parser GADT
 arbitraryParser :: (Arbitrary a, Show a) => Combinator a -> GenParser (Parser a)
 arbitraryParser Pure = do
   a <- lift $ resize literalSize QC.arbitrary
   pure $ Parser.Pure a
 arbitraryParser Satisfy = do
-  n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
+  -- This makes the remaining input problem easier as we know which character was chosen when calculating
+  -- the expected result for the test case (e.g. when fmap is applied, we need to know this)
+  -- n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
+  n <- lift $ chooseInt (1, 1)
   cs <- replicateM n arbitraryConstrainedChar
-  modify consumeChar
   pure $ Parser.Satisfy cs (`elem` cs)
 arbitraryParser Chr = Parser.Chr <$> arbitraryConstrainedChar
 arbitraryParser Item = do
   modify consumeChar
   pure Parser.Item
 arbitraryParser Str = do
+  GenParserState{follows} <- get
   n <- lift $ chooseInt (1, literalSize)
-  str <- replicate n <$> arbitraryConstrainedChar
+  str <- replicateM (max (length follows) n) arbitraryConstrainedChar
   pure $ Parser.Str str
 arbitraryParser (Atomic c) = do
   parser <- arbitraryParser c
   pure $ Parser.Atomic parser
 arbitraryParser (LookAhead c) = do
-  GenParserState{follows} <- get
   parser <- arbitraryParser c
-  modify (\s@(GenParserState{follows}) -> s { follows = follows })
+  modify (\s@(GenParserState{follows}) -> s { follows = inputConstraints parser ++ follows })
   pure $ Parser.LookAhead parser
 arbitraryParser (Then (AnyCombinator c) c') = do
   parser <- arbitraryParser c

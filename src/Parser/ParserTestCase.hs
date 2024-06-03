@@ -10,8 +10,6 @@ import           Text.Gigaparsec
 
 deriving instance Functor (Result e)
 
-data CharConstraint = OneOf [Char] | AnyChar deriving (Eq, Show)
-
 type GenParser t = StateT GenParserState QC.Gen t
 
 -- Constraints on the following n characters
