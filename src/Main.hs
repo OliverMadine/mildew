@@ -51,4 +51,3 @@ prop_no_crash = ioProperty $ do
 main :: IO ()
 main = do
   defaultMain $ localOption (QuickCheckTests 10000000) $ testProperty "Main" prop_no_crash
-

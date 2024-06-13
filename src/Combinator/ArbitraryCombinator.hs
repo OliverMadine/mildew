@@ -20,16 +20,14 @@ advancingGenericCombinators =
   ]
 
 nonAdvancingGenericCombinators :: [GenCombinator (Combinator a)]
--- HACK: We cannot generate successful inputs for partial consumption in the lookAhead case
 nonAdvancingGenericCombinators = [ arbitraryUnary LookAhead]
--- nonAdvancingGenericCombinators = [ arbitraryUnary (LookAhead . Atomic)]
 
 genericCombinator :: GenCombinator (Combinator a)
 genericCombinator = selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators
 
 advancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
-advancingListCombinators = advancingGenericCombinators
--- advancingListCombinators = withAdvancing (arbitraryUnary Some) : advancingGenericCombinators
+-- HACK: We cannot generate successful inputs for partial consumption in the lookAhead case
+advancingListCombinators = withAdvancing (arbitraryUnary (Some . Atomic)) : advancingGenericCombinators
 
 nonAdvancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
 nonAdvancingListCombinators = nonAdvancingGenericCombinators
@@ -52,6 +50,7 @@ nonAdvancingCharLeafs = pure Item : nonAdvancingGenericLeafs
 
 charLeaf :: GenCombinator (Combinator Char)
 charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingGenericLeafs
+-- charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingCharLeafs
 
 stringLeaf :: GenCombinator (Combinator String)
 stringLeaf = selectCombinator [ pure Str ] nonAdvancingGenericLeafs

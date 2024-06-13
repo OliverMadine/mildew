@@ -7,7 +7,7 @@ combinatorsPerLeaf :: Int
 combinatorsPerLeaf = 5
 
 combinatorSize :: Int
-combinatorSize = 50
+combinatorSize = 5
 
 inputsPerAnyCharConstraint :: Int
 inputsPerAnyCharConstraint = 10

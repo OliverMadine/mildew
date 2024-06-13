@@ -38,8 +38,7 @@ instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary 
     (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
     remainingInput <- evalStateT consumeRemainingConstraints state
     testCases <- arbitraryTestCases parser
-    -- This doesn't work as the arbitrarily chosen remaining input does not correspond to the chosen
-    -- input for the test case result
+    -- This doesn't work in general as the arbitrarily chosen remaining input does not correspond to the chosen input for the test case result. test cases are limited to singletons for now
     let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
     pure $ ParserTestCase parser testCases'
 
@@ -81,8 +80,8 @@ arbitraryParser Pure = do
   a <- lift $ resize literalSize QC.arbitrary
   pure $ Parser.Pure a
 arbitraryParser Satisfy = do
-  -- This makes the remaining input problem easier as we know which character was chosen when calculating
-  -- the expected result for the test case (e.g. when fmap is applied, we need to know this)
+  -- This makes the remaining input problem easier as we know which character was chosen when
+  -- calculating the expected result for the test case (e.g. when fmap is applied, we need to know this)
   -- n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
   n <- lift $ chooseInt (1, 1)
   cs <- replicateM n arbitraryConstrainedChar
@@ -115,17 +114,32 @@ arbitraryParser (Fmap (AnyCombinator c)) = do
   parser <- arbitraryParser c
   f <- lift QC.arbitrary
   pure $ Parser.Fmap f parser
-arbitraryParser (Some c) = undefined
-  -- parser <- arbitraryParser c
-  -- -- Some will consume as much as possible so `some` must consume the follow and preclude sets if
-  -- -- the sub-parser constraints are covered
-  -- modify (\s@(GenParserState{follows}) -> s { follows = dropWhile (constraintCovered constraints) follows })
-  -- -- TODO: If the follow-set is empty, we may randomly choose to generate more input to be consumed by
-  -- -- the sub-parser
-  -- -- The constraints of the sub-parser are precluded. This is to ensure the some combinator does not
-  -- -- consume the inputs intended for the next parser in the sequence
-  -- modify (\s@(GenParserState{precludes}) -> s { precludes = precludes ++ constraints })
-  -- pure Parser.Some 2 parser
+arbitraryParser (Some c) = do
+  GenParserState{follows = prevFollows} <- get
+  parser <- arbitraryParser c
+  GenParserState{follows} <- get
+  let constraints = inputConstraints parser
+      -- We can definitely do better here. We're not keeping enough context in the state
+      followsParser = take (length follows - length (drop (length constraints) prevFollows)) follows
+      requiredForAnotherIteration = constraints ++ followsParser
+  -- Some will consume as much as possible so `some` must consume the follow and preclude sets if
+  -- the sub-parser constraints are covered. The constraints of the sub-parser are then precluded.
+  -- This is to ensure the some combinator does not consume the inputs intended for the next parser
+  -- in the sequence
+  -- TODO: do this for cases [2..]
+  if constraintCovered requiredForAnotherIteration follows
+    then do
+      modify (\s@(GenParserState{follows, precludes}) -> s {
+        precludes = drop (length constraints) precludes,
+        follows = followsParser ++ drop (length requiredForAnotherIteration) follows
+        })
+      modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
+      pure $ traceShow "Hello" $ Parser.Some 2 parser
+    else do
+      modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
+      pure $ Parser.Some 1 parser
+  -- TODO: If the follow-set is empty, we may randomly choose to generate more input to be consumed by
+  -- the sub-parser
 arbitraryParser (Many c) = undefined
 
 consumeRemainingConstraints :: GenParser String
@@ -190,9 +204,11 @@ testCasesInputLength [] = error "Cannot find input length for empty test cases"
 testCasesInputLength ((input, _):testCases) =
   assert (all (\(i, _) -> length i == length input) testCases) (length input)
 
--- Needs to be atomic in a sense
 -- If no matter what we choose in the follow set, it parses, then the constraint is covered
-constraintCovered :: [CharConstraint] -> CharConstraint -> Bool
-constraintCovered (OneOf cs:_) (OneOf cs') = all (`elem` cs) cs'
+constraintCovered :: [CharConstraint] -> [CharConstraint] -> Bool
+constraintCovered (OneOf cs:constraints) (OneOf cs':constraints') =
+  all (`elem` cs) cs' && constraintCovered constraints constraints'
 constraintCovered (AnyChar:_) _ = True
-constraintCovered [] _ = error "Cannot check for constraint coverage without constraints"
+constraintCovered _ (AnyChar:_) = False
+constraintCovered [] _ = True
+constraintCovered _ [] = False
