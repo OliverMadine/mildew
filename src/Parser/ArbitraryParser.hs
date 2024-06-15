@@ -134,7 +134,7 @@ arbitraryParser (Some c) = do
         follows = followsParser ++ drop (length requiredForAnotherIteration) follows
         })
       modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
-      pure $ traceShow "Hello" $ Parser.Some 2 parser
+      pure $ Parser.Some 2 parser
     else do
       modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
       pure $ Parser.Some 1 parser

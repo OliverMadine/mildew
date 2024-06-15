@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Combinator.ArbitraryCombinator where
 
@@ -10,7 +11,7 @@ import qualified Test.Tasty.QuickCheck    as QC
 class ArbitraryCombinator t where
   arbitrary :: GenCombinator t
 
-advancingGenericCombinators :: [GenCombinator (Combinator a)]
+advancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombinator (Combinator a)]
 advancingGenericCombinators =
   [ arbitraryUnary Atomic
   , arbitraryUnary Fmap
@@ -18,21 +19,21 @@ advancingGenericCombinators =
   , arbitraryBinaryEitherAdvancing Before
   ]
 
-nonAdvancingGenericCombinators :: [GenCombinator (Combinator a)]
+nonAdvancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombinator (Combinator a)]
 nonAdvancingGenericCombinators = [ arbitraryUnary LookAhead]
 
-genericCombinator :: GenCombinator (Combinator a)
+genericCombinator :: ArbitraryCombinator (Combinator a) => GenCombinator (Combinator a)
 genericCombinator = selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators
 
-advancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
+advancingListCombinators :: (Show a, QC.Arbitrary a, ArbitraryCombinator (Combinator [a]), ArbitraryCombinator (Combinator a)) => [GenCombinator (Combinator [a])]
 -- We cannot generate successful inputs for partial consumption in the lookAhead case
 advancingListCombinators = withAdvancing (arbitraryUnary (Some . Atomic)) : advancingGenericCombinators
 
-nonAdvancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
+nonAdvancingListCombinators :: (Show a, QC.Arbitrary a, ArbitraryCombinator (Combinator [a])) => [GenCombinator (Combinator [a])]
 nonAdvancingListCombinators = nonAdvancingGenericCombinators
 -- nonAdvancingListCombinators = withAdvancing (arbitraryUnary Many) nonAdvancingGenericCombinators
 
-listCombinator :: (Show a, QC.Arbitrary a) => GenCombinator (Combinator [a])
+listCombinator :: (Show a, QC.Arbitrary a, ArbitraryCombinator (Combinator [a]), ArbitraryCombinator (Combinator a)) => GenCombinator (Combinator [a])
 listCombinator = selectCombinator advancingListCombinators nonAdvancingListCombinators
 
 nonAdvancingGenericLeafs :: [GenCombinator (Combinator a)]
@@ -40,7 +41,7 @@ nonAdvancingGenericLeafs = [ pure Pure ]
 
 -- There does not exist any advancing leaf with a generic type. Chr *> Pure is used
 -- to create a parser that both consumes input and return a generically types result
-genericLeaf :: GenCombinator (Combinator a)
+genericLeaf :: ArbitraryCombinator (Combinator a) => GenCombinator (Combinator a)
 genericLeaf = selectCombinator [pure (Then (AnyCombinator Chr) Pure)] nonAdvancingGenericLeafs
 
 -- HACK: item is considered non-advancing because it consumes any input so we don't want to include
@@ -55,11 +56,11 @@ charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingGenericLeafs
 stringLeaf :: GenCombinator (Combinator String)
 stringLeaf = selectCombinator [ pure Str ] nonAdvancingGenericLeafs
 
-instance {-# INCOHERENT #-} ArbitraryCombinator (Combinator a) where
+instance {-# OVERLAPPABLE #-} ArbitraryCombinator (Combinator a) where
   arbitrary :: GenCombinator (Combinator a)
   arbitrary = chooseLeafOrCombinator genericLeaf genericCombinator
   
-instance {-# OVERLAPPING #-} (Show a, QC.Arbitrary a) => ArbitraryCombinator (Combinator [a]) where
+instance {-# OVERLAPS #-} (Show a, QC.Arbitrary a) => ArbitraryCombinator (Combinator [a]) where
   arbitrary :: QC.Arbitrary a => GenCombinator (Combinator [a])
   arbitrary = chooseLeafOrCombinator genericLeaf listCombinator
 
