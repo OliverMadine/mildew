@@ -40,7 +40,6 @@ testParse parser input expected = do
       printActual actual
       pure False
 
-
 prop_no_crash :: Property
 prop_no_crash = ioProperty $ do
   ParserTestCase { parser, cases } <- generate (arbitrary :: Gen (ParserTestCase String))

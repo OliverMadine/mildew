@@ -1,5 +1,4 @@
 {-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE InstanceSigs        #-}
 
 module Combinator.ArbitraryCombinator where
@@ -26,7 +25,7 @@ genericCombinator :: GenCombinator (Combinator a)
 genericCombinator = selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators
 
 advancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
--- HACK: We cannot generate successful inputs for partial consumption in the lookAhead case
+-- We cannot generate successful inputs for partial consumption in the lookAhead case
 advancingListCombinators = withAdvancing (arbitraryUnary (Some . Atomic)) : advancingGenericCombinators
 
 nonAdvancingListCombinators :: (Show a, QC.Arbitrary a) => [GenCombinator (Combinator [a])]
@@ -39,7 +38,8 @@ listCombinator = selectCombinator advancingListCombinators nonAdvancingListCombi
 nonAdvancingGenericLeafs :: [GenCombinator (Combinator a)]
 nonAdvancingGenericLeafs = [ pure Pure ]
 
--- HACK: we don't have any generic leafs that are advancing right now
+-- There does not exist any advancing leaf with a generic type. Chr *> Pure is used
+-- to create a parser that both consumes input and return a generically types result
 genericLeaf :: GenCombinator (Combinator a)
 genericLeaf = selectCombinator [pure (Then (AnyCombinator Chr) Pure)] nonAdvancingGenericLeafs
 
@@ -55,19 +55,19 @@ charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingGenericLeafs
 stringLeaf :: GenCombinator (Combinator String)
 stringLeaf = selectCombinator [ pure Str ] nonAdvancingGenericLeafs
 
-instance {-# OVERLAPS #-} (Show a, QC.Arbitrary a) => ArbitraryCombinator (Combinator [a]) where
+instance {-# INCOHERENT #-} ArbitraryCombinator (Combinator a) where
+  arbitrary :: GenCombinator (Combinator a)
+  arbitrary = chooseLeafOrCombinator genericLeaf genericCombinator
+  
+instance {-# OVERLAPPING #-} (Show a, QC.Arbitrary a) => ArbitraryCombinator (Combinator [a]) where
   arbitrary :: QC.Arbitrary a => GenCombinator (Combinator [a])
   arbitrary = chooseLeafOrCombinator genericLeaf listCombinator
 
-instance ArbitraryCombinator (Combinator a) where
-  arbitrary :: GenCombinator (Combinator a)
-  arbitrary = chooseLeafOrCombinator genericLeaf genericCombinator
-
-instance {-# OVERLAPS #-} ArbitraryCombinator (Combinator Char) where
+instance {-# OVERLAPPING #-} ArbitraryCombinator (Combinator Char) where
   arbitrary :: GenCombinator (Combinator Char)
   arbitrary = chooseLeafOrCombinator charLeaf genericCombinator
 
-instance {-# OVERLAPS #-} ArbitraryCombinator (Combinator String) where
+instance {-# OVERLAPPING #-} ArbitraryCombinator (Combinator String) where
   arbitrary :: GenCombinator (Combinator String)
   arbitrary = chooseLeafOrCombinator stringLeaf listCombinator
 
