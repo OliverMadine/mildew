@@ -15,5 +15,5 @@ inputsPerAnyCharConstraint = 10
 charsPerSatisfyPredicate :: Int
 charsPerSatisfyPredicate = 5
 
-manyMaxSize :: Int
-manyMaxSize = 5
+additionalRepetitions :: Int
+additionalRepetitions = 5

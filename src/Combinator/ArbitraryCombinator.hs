@@ -1,5 +1,5 @@
-{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE InstanceSigs        #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Combinator.ArbitraryCombinator where
@@ -20,7 +20,7 @@ advancingGenericCombinators =
   ]
 
 nonAdvancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombinator (Combinator a)]
-nonAdvancingGenericCombinators = [ arbitraryUnary LookAhead]
+nonAdvancingGenericCombinators = [ arbitraryUnary LookAhead ]
 
 genericCombinator :: ArbitraryCombinator (Combinator a) => GenCombinator (Combinator a)
 genericCombinator = selectCombinator advancingGenericCombinators nonAdvancingGenericCombinators

@@ -1,12 +1,8 @@
-{-# LANGUAGE ConstrainedClassMethods #-}
-{-# LANGUAGE FlexibleContexts        #-}
 {-# LANGUAGE FlexibleInstances       #-}
 {-# LANGUAGE InstanceSigs            #-}
 {-# LANGUAGE MonoLocalBinds          #-}
 {-# LANGUAGE NamedFieldPuns          #-}
-{-# LANGUAGE RankNTypes              #-}
 {-# LANGUAGE RecordWildCards         #-}
-{-# LANGUAGE UndecidableInstances    #-}
 
 module Parser.ArbitraryParser where
 
@@ -31,13 +27,13 @@ initGenParserState :: GenParserState
 initGenParserState = GenParserState
   { follows = [], precludes = [] }
 
-instance (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Arbitrary (ParserTestCase a) where
-  arbitrary :: (Arbitrary a, ArbitraryCombinator (Combinator a), Show a) => Gen (ParserTestCase a)
+instance (Arbitrary a, Show a) => Arbitrary (ParserTestCase a) where
+  arbitrary :: (Arbitrary a, Show a) => Gen (ParserTestCase a)
   arbitrary = do
     combinator <- evalGenCombinator Combinator.arbitrary
     (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
     remainingInput <- evalStateT consumeRemainingConstraints state
-    testCases <- arbitraryTestCases parser
+    testCases <- modelResults parser
     -- This doesn't work in general as the arbitrarily chosen remaining input does not correspond to the chosen input for the test case result. test cases are limited to singletons for now
     let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
     pure $ ParserTestCase parser testCases'
@@ -46,31 +42,32 @@ testCase :: Gen (ParserTestCase Char)
 testCase = do
   let combinator = Then (AnyCombinator (LookAhead (Then (AnyCombinator Chr) Chr))) Satisfy
   (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
-  testCases <- arbitraryTestCases parser
+  testCases <- modelResults parser
   remainingInput <- evalStateT consumeRemainingConstraints state
   let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
   pure $ ParserTestCase parser testCases'
 
 -- Resolve the constraints and generate specific test cases with expected results
-arbitraryTestCases :: Parser a -> Gen [TestCase a]
-arbitraryTestCases (Parser.Pure a) = pure [([], Success a)]
-arbitraryTestCases (Parser.Satisfy cs p) = pure $ map (\c -> ([c], Success c)) cs
-arbitraryTestCases (Parser.Chr char) = pure [([char], Success char)]
-arbitraryTestCases Parser.Item = do
-  cs <- resize inputsPerAnyCharConstraint $ listOf1 QC.arbitrary
-  pure [([c], Success c) | c <- cs]
-arbitraryTestCases (Parser.Str str) = pure [(str, Success str)]
-arbitraryTestCases (Parser.Atomic p) = arbitraryTestCases p
-arbitraryTestCases (Parser.LookAhead p) = do
-  cases <- arbitraryTestCases p
+modelResults :: Parser a -> Gen [TestCase a]
+modelResults (Parser.Pure a) = pure [([], Success a)]
+modelResults (Parser.Satisfy cs p) = pure $ map (\c -> ([c], Success c)) cs
+modelResults (Parser.Chr char) = pure [([char], Success char)]
+modelResults (Parser.Item cs) = do
+  -- TODO: This must have a list of character for the constraints too
+  cs' <- resize inputsPerAnyCharConstraint $ listOf1 QC.arbitrary
+  pure [([c], Success c) | c <- cs']
+modelResults (Parser.Str str) = pure [(str, Success str)]
+modelResults (Parser.Atomic p) = modelResults p
+modelResults (Parser.LookAhead p) = do
+  cases <- modelResults p
   pure $ map (\(i, r) -> ("", r)) cases
-arbitraryTestCases (Parser.Then p p') = arbitrarySequencingParser p p' snd
-arbitraryTestCases (Parser.Before p p') = arbitrarySequencingParser p p' fst
-arbitraryTestCases (Parser.Fmap f p) = do
-  cases <- arbitraryTestCases p
+modelResults (Parser.Then p p') = arbitrarySequencingParser p p' snd
+modelResults (Parser.Before p p') = arbitrarySequencingParser p p' fst
+modelResults (Parser.Fmap f p) = do
+  cases <- modelResults p
   pure $ map (second (f <$>)) cases
-arbitraryTestCases (Parser.Some n p) = do
-  cases <- replicateM n (arbitraryTestCases p)
+modelResults (Parser.Some n p) = do
+  cases <- replicateM n (modelResults p)
   pure $ map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
 
 -- TODO: the list of char constraints should be a dequeue for performance reasons
@@ -83,13 +80,13 @@ arbitraryParser Satisfy = do
   -- This makes the remaining input problem easier as we know which character was chosen when
   -- calculating the expected result for the test case (e.g. when fmap is applied, we need to know this)
   -- n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
-  n <- lift $ chooseInt (1, 1)
+  n <- lift $ chooseInt (1, charsPerSatisfyPredicate)
   cs <- replicateM n arbitraryConstrainedChar
   pure $ Parser.Satisfy cs (`elem` cs)
 arbitraryParser Chr = Parser.Chr <$> arbitraryConstrainedChar
 arbitraryParser Item = do
   modify consumeChar
-  pure Parser.Item
+  pure $ Parser.Item undefined
 arbitraryParser Str = do
   GenParserState{follows} <- get
   n <- lift $ chooseInt (1, literalSize)
@@ -115,32 +112,24 @@ arbitraryParser (Fmap (AnyCombinator c)) = do
   f <- lift QC.arbitrary
   pure $ Parser.Fmap f parser
 arbitraryParser (Some c) = do
-  GenParserState{follows = prevFollows} <- get
   parser <- arbitraryParser c
-  GenParserState{follows} <- get
-  let constraints = inputConstraints parser
-      -- We can definitely do better here. We're not keeping enough context in the state
-      followsParser = take (length follows - length (drop (length constraints) prevFollows)) follows
-      requiredForAnotherIteration = constraints ++ followsParser
-  -- Some will consume as much as possible so `some` must consume the follow and preclude sets if
-  -- the sub-parser constraints are covered. The constraints of the sub-parser are then precluded.
-  -- This is to ensure the some combinator does not consume the inputs intended for the next parser
-  -- in the sequence
-  -- TODO: do this for cases [2..]
-  if constraintCovered requiredForAnotherIteration follows
+  let newPrecludingConstraint = take 1 $ inputConstraints parser
+      (consumedCount, follows, precludes) = consumeConstraints parser follows precludes
+  modify (\s@(GenParserState{precludes}) -> s {
+      follows,
+      precludes = newPrecludingConstraint ++ precludes
+    })
+  if null follows
     then do
-      modify (\s@(GenParserState{follows, precludes}) -> s {
-        precludes = drop (length constraints) precludes,
-        follows = followsParser ++ drop (length requiredForAnotherIteration) follows
-        })
-      modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
-      pure $ Parser.Some 2 parser
+      -- Chose random number of additional repetitions
+      n <- lift $ chooseInt (0, additionalRepetitions)
+      return (Parser.Some (succ consumedCount + n) parser)
     else do
-      modify (\s@(GenParserState{precludes}) -> s { precludes = requiredForAnotherIteration ++ precludes })
-      pure $ Parser.Some 1 parser
-  -- TODO: If the follow-set is empty, we may randomly choose to generate more input to be consumed by
-  -- the sub-parser
+      return (Parser.Some (succ consumedCount) parser)
 arbitraryParser (Many c) = undefined
+
+consumeConstraints :: Parser a1 -> [CharConstraint] -> t0 -> (Int, [CharConstraint], t0)
+consumeConstraints = undefined
 
 consumeRemainingConstraints :: GenParser String
 consumeRemainingConstraints = do
@@ -195,8 +184,8 @@ evalGenParserInputs gen = evalStateT gen initGenParserState
 
 arbitrarySequencingParser :: Parser a1 -> Parser a2 -> ((Result String a1, Result String a2) -> b) -> Gen [([Char], b)]
 arbitrarySequencingParser p p' f = do
-  cases <- arbitraryTestCases p
-  cases' <- arbitraryTestCases p'
+  cases <- modelResults p
+  cases' <- modelResults p'
   pure $ zipWith (\(i, r) (i', r') -> (i ++ i', f (r, r'))) cases cases'
 
 testCasesInputLength :: [TestCase a] -> Int

@@ -12,7 +12,7 @@ data Parser a where
   Pure        :: Show a => a -> Parser a
   Satisfy     :: [Char] -> (Char -> Bool) -> Parser Char
   Chr         :: Char -> Parser Char
-  Item        :: Parser Char
+  Item        :: [Char] -> Parser Char
   Str         :: String -> Parser String
   Atomic      :: Parser a -> Parser a
   LookAhead   :: Parser a -> Parser a
@@ -25,9 +25,9 @@ data Parser a where
 instance Show (Parser a) where
   show :: Parser a -> String
   show (Pure a)       = "pure" ++ parensShow a
-  show (Satisfy cs p) = "satisfy" ++ "(`elem`" ++ parensShow cs ++ ")"
+  show (Satisfy cs p) = "satisfy" ++ "(`elem`" ++ show cs ++ ")"
   show (Chr c)        = "char" ++ parensShow c
-  show Item           = "item"
+  show (Item cs)      = "item" ++ parensShow cs
   show (Str s)        = "string" ++ parensShow s
   show (Atomic c)     = "atomic" ++ parensShow c
   show (LookAhead c)  = "lookAhead" ++ parensShow c
@@ -41,7 +41,8 @@ inputConstraints :: Parser a -> [CharConstraint]
 inputConstraints (Pure a)       = []
 inputConstraints (Satisfy cs _) = [OneOf cs]
 inputConstraints (Chr c)        = [OneOf [c]]
-inputConstraints Item           = [AnyChar]
+-- TODO: check
+inputConstraints (Item cs)      = [OneOf cs]
 inputConstraints (Str s)        = map (OneOf . (: [])) s
 inputConstraints (Atomic p)     = inputConstraints p
 inputConstraints (LookAhead p)  = []

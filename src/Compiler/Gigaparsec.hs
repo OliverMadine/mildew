@@ -12,7 +12,7 @@ compile :: Parser t -> Parsec t
 compile (Pure a)      = pure a
 compile (Satisfy _ p) = satisfy p
 compile (Chr c)       = char c
-compile Item          = item
+compile (Item _)      = item
 compile (Str s)       = string s
 compile (Atomic c)    = atomic (compile c)
 compile (LookAhead c) = lookAhead (compile c)
