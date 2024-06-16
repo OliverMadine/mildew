@@ -20,7 +20,7 @@ data GenParserState = GenParserState {
 
 type TestCase a = (String, Result String a)
 
-data ParserTestCase a = ParserTestCase
+data ParserTestCases a = ParserTestCases
   { parser :: Parser a
   , cases  :: [TestCase a]
   }

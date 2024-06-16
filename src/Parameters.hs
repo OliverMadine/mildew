@@ -7,13 +7,10 @@ combinatorsPerLeaf :: Int
 combinatorsPerLeaf = 5
 
 combinatorSize :: Int
-combinatorSize = 5
-
-inputsPerAnyCharConstraint :: Int
-inputsPerAnyCharConstraint = 10
+combinatorSize = 10
 
 charsPerSatisfyPredicate :: Int
 charsPerSatisfyPredicate = 5
 
 additionalRepetitions :: Int
-additionalRepetitions = 5
+additionalRepetitions = 8

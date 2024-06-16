@@ -27,48 +27,44 @@ initGenParserState :: GenParserState
 initGenParserState = GenParserState
   { follows = [], precludes = [] }
 
-instance (Arbitrary a, Show a) => Arbitrary (ParserTestCase a) where
-  arbitrary :: (Arbitrary a, Show a) => Gen (ParserTestCase a)
+instance (Arbitrary a, Show a) => Arbitrary (ParserTestCases a) where
+  arbitrary :: (Arbitrary a, Show a) => Gen (ParserTestCases a)
   arbitrary = do
+    -- Generate a combinator structure
     combinator <- evalGenCombinator Combinator.arbitrary
+    -- Instantiate an arbitrary parser for that structure
     (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
+    -- Consider any remaining constraints on the input to the parser
     remainingInput <- evalStateT consumeRemainingConstraints state
-    testCases <- modelResults parser
-    -- This doesn't work in general as the arbitrarily chosen remaining input does not correspond to the chosen input for the test case result. test cases are limited to singletons for now
-    let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
-    pure $ ParserTestCase parser testCases'
+    -- Generate specific test cases consisting of input string wit their corresponding expected results
+    let testCases = [(input ++ remainingInput, result) | (input, result) <- modelResults parser]
+    pure $ ParserTestCases parser testCases
 
-testCase :: Gen (ParserTestCase Char)
+testCase :: Gen (ParserTestCases Char)
 testCase = do
   let combinator = Then (AnyCombinator (LookAhead (Then (AnyCombinator Chr) Chr))) Satisfy
   (parser, state) <- runStateT (arbitraryParser combinator) initGenParserState
-  testCases <- modelResults parser
+  let testCases = modelResults parser
   remainingInput <- evalStateT consumeRemainingConstraints state
   let testCases' = [(input ++ remainingInput, result) | (input, result) <- testCases]
-  pure $ ParserTestCase parser testCases'
+  pure $ ParserTestCases parser testCases'
 
 -- Resolve the constraints and generate specific test cases with expected results
-modelResults :: Parser a -> Gen [TestCase a]
-modelResults (Parser.Pure a) = pure [([], Success a)]
-modelResults (Parser.Satisfy cs p) = pure $ map (\c -> ([c], Success c)) cs
-modelResults (Parser.Chr char) = pure [([char], Success char)]
-modelResults (Parser.Item cs) = do
-  -- TODO: This must have a list of character for the constraints too
-  cs' <- resize inputsPerAnyCharConstraint $ listOf1 QC.arbitrary
-  pure [([c], Success c) | c <- cs']
-modelResults (Parser.Str str) = pure [(str, Success str)]
+modelResults :: Parser a -> [TestCase a]
+modelResults (Parser.Pure a) = [([], Success a)]
+modelResults (Parser.Satisfy cs p) = map (\c -> ([c], Success c)) cs
+modelResults (Parser.Chr char) = [([char], Success char)]
+modelResults (Parser.Item cs) = [([c], Success c) | c <- cs]
+modelResults (Parser.Str str) = [(str, Success str)]
 modelResults (Parser.Atomic p) = modelResults p
-modelResults (Parser.LookAhead p) = do
-  cases <- modelResults p
-  pure $ map (\(i, r) -> ("", r)) cases
-modelResults (Parser.Then p p') = arbitrarySequencingParser p p' snd
-modelResults (Parser.Before p p') = arbitrarySequencingParser p p' fst
-modelResults (Parser.Fmap f p) = do
-  cases <- modelResults p
-  pure $ map (second (f <$>)) cases
-modelResults (Parser.Some n p) = do
-  cases <- replicateM n (modelResults p)
-  pure $ map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
+modelResults (Parser.LookAhead p) = let cases = modelResults p in map (\(i, r) -> ("", r)) cases
+modelResults (Parser.Then p p') = modelSequencingParser p p' snd
+modelResults (Parser.Before p p') = modelSequencingParser p p' fst
+modelResults (Parser.Fmap f p) = map (second (f <$>)) (modelResults p)
+modelResults (Parser.Some n p) =
+  let cases = replicateM n (modelResults p) in
+    map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
+modelResults (Parser.Many n p) = undefined
 
 -- TODO: the list of char constraints should be a dequeue for performance reasons
 -- Choose a specific parser while tracking specific input constraints on the Parser GADT
@@ -182,11 +178,11 @@ arbitraryCharExcluding xs = elements [c | c <- [' ', '~'], c `notElem` xs]
 evalGenParserInputs :: GenParser t -> QC.Gen t
 evalGenParserInputs gen = evalStateT gen initGenParserState
 
-arbitrarySequencingParser :: Parser a1 -> Parser a2 -> ((Result String a1, Result String a2) -> b) -> Gen [([Char], b)]
-arbitrarySequencingParser p p' f = do
-  cases <- modelResults p
-  cases' <- modelResults p'
-  pure $ zipWith (\(i, r) (i', r') -> (i ++ i', f (r, r'))) cases cases'
+modelSequencingParser :: Parser a1 -> Parser a2 -> ((Result String a1, Result String a2) -> b) -> [([Char], b)]
+modelSequencingParser p p' f = 
+  let cases = modelResults p
+      cases' = modelResults p'
+    in zipWith (\(i, r) (i', r') -> (i ++ i', f (r, r'))) cases cases'
 
 testCasesInputLength :: [TestCase a] -> Int
 testCasesInputLength [] = error "Cannot find input length for empty test cases"
