@@ -7,7 +7,7 @@ combinatorsPerLeaf :: Int
 combinatorsPerLeaf = 5
 
 combinatorSize :: Int
-combinatorSize = 10
+combinatorSize = 4
 
 charsPerSatisfyPredicate :: Int
 charsPerSatisfyPredicate = 5

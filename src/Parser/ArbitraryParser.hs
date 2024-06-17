@@ -110,7 +110,8 @@ arbitraryParser (Fmap (AnyCombinator c)) = do
 arbitraryParser (Some c) = do
   parser <- arbitraryParser c
   let newPrecludingConstraint = take 1 $ inputConstraints parser
-      (consumedCount, follows, precludes) = consumeConstraints parser follows precludes
+  GenParserState{precludes, follows} <- get 
+      -- (consumedCount, follows, precludes) = consumeConstraints parser follows precludes
   modify (\s@(GenParserState{precludes}) -> s {
       follows,
       precludes = newPrecludingConstraint ++ precludes
@@ -119,9 +120,9 @@ arbitraryParser (Some c) = do
     then do
       -- Chose random number of additional repetitions
       n <- lift $ chooseInt (0, additionalRepetitions)
-      return (Parser.Some (succ consumedCount + n) parser)
+      return (Parser.Some (succ n) parser)
     else do
-      return (Parser.Some (succ consumedCount) parser)
+      return (Parser.Some 1 parser)
 arbitraryParser (Many c) = undefined
 
 consumeConstraints :: Parser a1 -> [CharConstraint] -> t0 -> (Int, [CharConstraint], t0)

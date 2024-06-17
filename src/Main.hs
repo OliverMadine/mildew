@@ -53,4 +53,4 @@ prop_comb comb =
 
 main :: IO ()
 main = do
-  defaultMain $ localOption (QuickCheckTests 10000) $ testProperty "Combinator Distribution" prop_comb
+  defaultMain $ localOption (QuickCheckTests 10000) $ testProperty "" prop_model_parser
