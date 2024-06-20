@@ -67,7 +67,9 @@ modelResults (Parser.Fmap f p) = map (second (f <$>)) (modelResults p)
 modelResults (Parser.Some n p) =
   let cases = replicateM n (modelResults p) in
     map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
-modelResults (Parser.Many n p) = undefined
+modelResults (Parser.Many n p) = 
+  let cases = replicateM n (modelResults p) in
+    map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
 
 -- TODO: the list of char constraints should be a dequeue for performance reasons
 -- Choose a specific parser while tracking specific input constraints on the Parser GADT

@@ -31,7 +31,6 @@ advancingListCombinators = withAdvancing (arbitraryUnary (Some . Atomic)) : adva
 
 nonAdvancingListCombinators :: (Show a, QC.Arbitrary a, ArbitraryCombinator (Combinator [a])) => [GenCombinator (Combinator [a])]
 nonAdvancingListCombinators = nonAdvancingGenericCombinators
--- nonAdvancingListCombinators = withAdvancing (arbitraryUnary Many) nonAdvancingGenericCombinators
 
 listCombinator :: (Show a, QC.Arbitrary a, ArbitraryCombinator (Combinator [a]), ArbitraryCombinator (Combinator a)) => GenCombinator (Combinator [a])
 listCombinator = selectCombinator advancingListCombinators nonAdvancingListCombinators
