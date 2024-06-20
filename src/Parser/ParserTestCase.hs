@@ -15,7 +15,7 @@ type GenParser t = StateT GenParserState QC.Gen t
 -- Constraints on the following n characters
 data GenParserState = GenParserState {
   follows   :: [CharConstraint],
-  precludes :: [CharConstraint]
+  precludes :: [Char]
 } deriving (Show)
 
 type TestCase a = (String, Result String a)

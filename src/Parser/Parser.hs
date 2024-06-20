@@ -37,13 +37,12 @@ instance Show (Parser a) where
   show (Then c c')    = parensShow c ++ " *> " ++ parensShow c'
   show (Before c c')  = parensShow c ++ " <* " ++ parensShow c'
 
-inputConstraints :: Parser a -> [CharConstraint]
+inputConstraints :: Parser a -> [Char]
 inputConstraints (Pure a)       = []
-inputConstraints (Satisfy cs _) = [OneOf cs]
-inputConstraints (Chr c)        = [OneOf [c]]
--- TODO: check
-inputConstraints (Item cs)      = [OneOf cs]
-inputConstraints (Str s)        = map (OneOf . (: [])) s
+inputConstraints (Satisfy cs _) = cs
+inputConstraints (Chr c)        = [c]
+inputConstraints (Item cs)      = cs
+inputConstraints (Str s)        = s
 inputConstraints (Atomic p)     = inputConstraints p
 inputConstraints (LookAhead p)  = []
 inputConstraints (Then p p')    = inputConstraints p ++ inputConstraints p'

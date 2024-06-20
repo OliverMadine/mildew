@@ -15,8 +15,8 @@ advancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombina
 advancingGenericCombinators =
   [ arbitraryUnary Atomic
   , arbitraryUnary Fmap
-  , arbitraryBinaryEitherAdvancing Then
-  , arbitraryBinaryEitherAdvancing Before
+  , scaleBinary Then arbitrary (withoutAdvancing arbitrary)
+  , scaleBinary Before arbitrary (withoutAdvancing arbitrary)
   ]
 
 nonAdvancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombinator (Combinator a)]
@@ -82,12 +82,6 @@ instance ArbitraryCombinator AnyCombinator where
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator (Maybe Int)))
     , AnyCombinator <$> (arbitrary :: GenCombinator (Combinator [Int]))
     ]
-
-arbitraryBinaryEitherAdvancing :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
-arbitraryBinaryEitherAdvancing f = oneof
-  [ scaleBinary f arbitrary (withoutAdvancing arbitrary)
-  , scaleBinary f (withoutAdvancing arbitrary) arbitrary
-  ]
 
 arbitraryBinary :: (ArbitraryCombinator a, ArbitraryCombinator b) => (a -> b -> t) -> GenCombinator t
 arbitraryBinary f = scaleBinary f arbitrary arbitrary

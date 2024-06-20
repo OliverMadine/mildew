@@ -10,7 +10,7 @@ combinatorSize :: Int
 combinatorSize = 4
 
 charsPerSatisfyPredicate :: Int
-charsPerSatisfyPredicate = 5
+charsPerSatisfyPredicate = 1
 
 additionalRepetitions :: Int
 additionalRepetitions = 8
