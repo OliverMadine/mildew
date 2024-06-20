@@ -3,4 +3,4 @@ Differential Fuzzing of [Parsley](https://github.com/j-mie6/parsley) and [Gigapa
 # Getting Started
 
 ```
-cabal test
+cabal run
