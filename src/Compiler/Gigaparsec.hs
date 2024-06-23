@@ -21,3 +21,4 @@ compile (Some _ c)    = some (compile c)
 compile (Many _ c)    = many (compile c)
 compile (Then c c')   = compile c *> compile c'
 compile (Before c c') = compile c <* compile c'
+compile (Digit _)     = digit

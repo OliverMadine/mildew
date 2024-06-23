@@ -21,6 +21,7 @@ data Parser a where
   Fmap        :: (b -> a) -> Parser b -> Parser a
   Some        :: Int -> Parser a -> Parser [a]
   Many        :: Int -> Parser a -> Parser [a]
+  Digit       :: [Char] -> Parser Char
 
 instance Show (Parser a) where
   show :: Parser a -> String
@@ -36,6 +37,7 @@ instance Show (Parser a) where
   show (Many _ c)     = "many" ++ parensShow c
   show (Then c c')    = parensShow c ++ " *> " ++ parensShow c'
   show (Before c c')  = parensShow c ++ " <* " ++ parensShow c'
+  show (Digit c)      = "digit" ++ parensShow c
 
 inputConstraints :: Parser a -> [Char]
 inputConstraints (Pure a)       = []
@@ -50,3 +52,4 @@ inputConstraints (Before p p')  = inputConstraints p ++ inputConstraints p'
 inputConstraints (Fmap _ p)     = inputConstraints p
 inputConstraints (Some _ p)     = inputConstraints p
 inputConstraints (Many _ p)     = inputConstraints p
+inputConstraints (Digit cs)     = cs

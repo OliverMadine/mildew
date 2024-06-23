@@ -64,10 +64,11 @@ modelResults (Parser.LookAhead p) = let cases = modelResults p in map (\(i, r) -
 modelResults (Parser.Then p p') = modelSequencingParser p p' snd
 modelResults (Parser.Before p p') = modelSequencingParser p p' fst
 modelResults (Parser.Fmap f p) = map (second (f <$>)) (modelResults p)
+modelResults (Parser.Digit cs) = [([c], Success c) | c <- cs]
 modelResults (Parser.Some n p) =
   let cases = replicateM n (modelResults p) in
     map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
-modelResults (Parser.Many n p) = 
+modelResults (Parser.Many n p) =
   let cases = replicateM n (modelResults p) in
     map (foldl1 combineRepeatedTestCase . map (second (fmap (: [])))) cases
 
@@ -109,6 +110,20 @@ arbitraryParser (Fmap (AnyCombinator c)) = do
   parser <- arbitraryParser c
   f <- lift QC.arbitrary
   pure $ Parser.Fmap f parser
+arbitraryParser Digit = do
+  GenParserState{follows} <- get
+  case follows of
+    ((OneOf cs):cs') | null $ intersect cs ['0'..'9']  -> pure $ Parser.Digit []
+    ((OneOf cs):cs') -> do
+      let digits = ['0'..'9'] `intersect` cs
+      modify (\s -> s { follows = OneOf digits : cs'})
+      Parser.Digit . (: []) <$> arbitraryConstrainedChar
+    (_:cs') -> do
+      modify (\s -> s { follows = OneOf ['0'..'9'] : cs'})
+      Parser.Digit . (: []) <$> arbitraryConstrainedChar
+    _ -> do
+      modify (\s -> s { follows = [OneOf ['0'..'9']]})
+      Parser.Digit . (: []) <$> arbitraryConstrainedChar
 arbitraryParser (Some c) = do
   parser <- arbitraryParser c
   let newPrecludingConstraint = take 1 $ inputConstraints parser

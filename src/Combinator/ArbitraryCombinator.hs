@@ -49,8 +49,7 @@ nonAdvancingCharLeafs :: [GenCombinator (Combinator Char)]
 nonAdvancingCharLeafs = pure Item : nonAdvancingGenericLeafs
 
 charLeaf :: GenCombinator (Combinator Char)
-charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingGenericLeafs
--- charLeaf = selectCombinator [ pure Satisfy, pure Chr ] nonAdvancingCharLeafs
+charLeaf = selectCombinator [ pure Satisfy, pure Chr, pure Digit ] nonAdvancingGenericLeafs
 
 stringLeaf :: GenCombinator (Combinator String)
 stringLeaf = selectCombinator [ pure Str ] nonAdvancingGenericLeafs

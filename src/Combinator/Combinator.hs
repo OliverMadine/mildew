@@ -28,6 +28,7 @@ data Combinator a where
   Fmap        :: AnyCombinator -> Combinator a
   Some        :: (Show a, Arbitrary a) => Combinator a -> Combinator [a]
   Many        :: (Show a, Arbitrary a) => Combinator a -> Combinator [a]
+  Digit       :: Combinator Char
 
 data AnyCombinator = forall a. (Show a, CoArbitrary a, Arbitrary a) => AnyCombinator (Combinator a)
 deriving instance Show AnyCombinator
@@ -46,3 +47,4 @@ instance Show (Combinator a) where
   show (Many c)                      = "many" ++ parensShow c
   show (Then (AnyCombinator c) c')   = parensShow c ++ " *> " ++ parensShow c'
   show (Before c (AnyCombinator c')) = parensShow c ++ " <* " ++ parensShow c'
+  show Digit                         = "digit"

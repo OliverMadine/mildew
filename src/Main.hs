@@ -70,4 +70,4 @@ prop_comb comb =
 
 main :: IO ()
 main = do
-  defaultMain $ localOption (QuickCheckTests 10000) $ testProperty "" prop_model_parser
+  defaultMain $ localOption (QuickCheckTests 1000000) $ testProperty "" prop_model_parser
