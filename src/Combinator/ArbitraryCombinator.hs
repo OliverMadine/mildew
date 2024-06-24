@@ -15,8 +15,8 @@ advancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombina
 advancingGenericCombinators =
   [ arbitraryUnary Atomic
   , arbitraryUnary Fmap
-  , scaleBinary Then arbitrary (withoutAdvancing arbitrary)
-  , scaleBinary Before arbitrary (withoutAdvancing arbitrary)
+  , arbitraryBinary Then
+  , arbitraryBinary Before
   ]
 
 nonAdvancingGenericCombinators :: ArbitraryCombinator (Combinator a) => [GenCombinator (Combinator a)]
